@@ -40,7 +40,14 @@ function BpmnViewerInner({ xml }: BpmnViewerProps) {
         if (result.warnings?.length > 0) {
           console.warn('BPMN import warnings:', result.warnings);
         }
-        viewer.get('canvas').zoom('fit-viewport');
+        const canvas = viewer.get('canvas');
+        canvas.zoom('fit-viewport');
+        // If diagram is too wide, zoom to readable level instead of squashing
+        const currentZoom = canvas.zoom();
+        if (currentZoom < 0.4) {
+          canvas.zoom(0.6);
+          canvas.scroll({ dx: 0, dy: 0 }); // reset to top-left
+        }
         setLoading(false);
       } catch (err) {
         console.error('BPMN render error:', err);
@@ -86,7 +93,7 @@ const BpmnViewerDynamic = dynamic(
 
 export function BpmnViewer({ xml }: BpmnViewerProps) {
   return (
-    <div className="w-full h-[500px] bg-white border border-zinc-800 rounded-lg overflow-hidden">
+    <div className="w-full h-[600px] bg-white border border-zinc-800 rounded-lg overflow-auto">
       <BpmnViewerDynamic xml={xml} />
     </div>
   );
