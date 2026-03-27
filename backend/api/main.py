@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from backend.api.store import ProcessStore
+from backend.pipeline.pipeline import run_pipeline as execute_pipeline
 
 UPLOAD_DIR = Path(__file__).parent / "storage"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -31,23 +32,24 @@ async def health():
 
 @app.post("/api/upload")
 async def upload_event_log(file: UploadFile):
-    """Upload a CSV event log and trigger process discovery."""
+    """Upload a CSV event log. File must be an Activity Sequence Export CSV."""
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(400, "Only CSV files are accepted")
 
     process_id = str(uuid.uuid4())[:8]
-    file_path = UPLOAD_DIR / f"{process_id}.csv"
 
-    with open(file_path, "wb") as f:
+    # Pipeline expects a directory of CSVs — create one per upload
+    process_dir = UPLOAD_DIR / process_id
+    process_dir.mkdir(exist_ok=True)
+
+    # Save with original-ish name so pipeline glob picks it up
+    dest = process_dir / f"Activity Sequence Export - {file.filename}"
+    with open(dest, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    store.set_status(process_id, "uploaded", file_path=str(file_path))
+    store.set_status(process_id, "uploaded", file_path=str(process_dir))
 
-    # TODO: trigger pipeline processing (will be wired when pipeline module is ready)
-    # For now, mark as ready for processing
-    store.set_status(process_id, "ready")
-
-    return {"process_id": process_id, "status": "ready", "filename": file.filename}
+    return {"process_id": process_id, "status": "uploaded", "filename": file.filename}
 
 
 @app.get("/api/processes")
@@ -64,30 +66,31 @@ async def get_process(process_id: str):
         raise HTTPException(404, f"Process {process_id} not found")
 
     if not entry.get("pipeline_output"):
-        raise HTTPException(202, detail="Pipeline processing not yet complete")
+        return {"process_id": process_id, "status": entry.get("status", "uploaded"), "pipeline_output": None}
 
     return entry["pipeline_output"]
 
 
 @app.post("/api/process/{process_id}/run-pipeline")
-async def run_pipeline(process_id: str):
-    """Trigger pipeline analysis on an uploaded file."""
+async def run_pipeline_endpoint(process_id: str):
+    """Trigger pipeline analysis on uploaded files."""
     entry = store.get(process_id)
     if not entry:
         raise HTTPException(404, f"Process {process_id} not found")
 
     file_path = entry.get("file_path")
     if not file_path or not Path(file_path).exists():
-        raise HTTPException(400, "Upload file not found")
+        raise HTTPException(400, "Upload directory not found")
 
     store.set_status(process_id, "processing")
 
-    # TODO: call pipeline module here
-    # from backend.pipeline.run import run_pipeline as execute_pipeline
-    # pipeline_output = execute_pipeline(file_path)
-    # store.set_pipeline_output(process_id, pipeline_output.model_dump())
-
-    return {"process_id": process_id, "status": "processing"}
+    try:
+        pipeline_output = execute_pipeline(file_path, process_id=process_id)
+        store.set_pipeline_output(process_id, pipeline_output.model_dump())
+        return {"process_id": process_id, "status": "pipeline_complete"}
+    except Exception as e:
+        store.set_status(process_id, "error")
+        raise HTTPException(500, f"Pipeline failed: {str(e)}")
 
 
 @app.post("/api/process/{process_id}/analyze")
@@ -102,9 +105,9 @@ async def analyze_process(process_id: str):
 
     store.set_status(process_id, "analyzing")
 
-    # TODO: call copilot module here
+    # TODO: wire copilot module when ready
     # from backend.copilot.run import run_copilot
-    # copilot_output = run_copilot(entry["pipeline_output"])
+    # copilot_output = run_copilot(PipelineOutput.model_validate(entry["pipeline_output"]))
     # store.set_copilot_output(process_id, copilot_output.model_dump())
 
     return {"process_id": process_id, "status": "analyzing"}
