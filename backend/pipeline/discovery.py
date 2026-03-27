@@ -10,6 +10,11 @@ ACTIVITY_COL = "concept:name"
 TIMESTAMP_COL = "time:timestamp"
 RESOURCE_COL = "org:resource"
 DURATION_COL = "duration_ms"
+APP_COL = "application_name"
+COPY_COL = "copy_count"
+PASTE_COL = "paste_count"
+CLICKS_COL = "clicks_no"
+TEXT_COL = "text_entries_no"
 
 
 def discover_activities(df: pd.DataFrame) -> list[Activity]:
@@ -20,6 +25,19 @@ def discover_activities(df: pd.DataFrame) -> list[Activity]:
     for name, group in grouped:
         duration_sec = group[DURATION_COL] / 1000.0
         performers = group[RESOURCE_COL].dropna().unique().tolist()
+
+        applications = []
+        if APP_COL in group.columns:
+            applications = group[APP_COL].dropna().unique().tolist()
+
+        copy_paste = 0
+        if COPY_COL in group.columns and PASTE_COL in group.columns:
+            copy_paste = int(group[COPY_COL].sum() + group[PASTE_COL].sum())
+
+        manual_interactions = 0
+        if CLICKS_COL in group.columns and TEXT_COL in group.columns:
+            manual_interactions = int(group[CLICKS_COL].sum() + group[TEXT_COL].sum())
+
         activities.append(Activity(
             name=str(name),
             frequency=len(group),
@@ -27,6 +45,9 @@ def discover_activities(df: pd.DataFrame) -> list[Activity]:
             min_duration_seconds=float(duration_sec.min()),
             max_duration_seconds=float(duration_sec.max()),
             performers=performers,
+            applications=applications,
+            copy_paste_count=copy_paste,
+            manual_interaction_count=manual_interactions,
         ))
 
     return sorted(activities, key=lambda a: a.frequency, reverse=True)

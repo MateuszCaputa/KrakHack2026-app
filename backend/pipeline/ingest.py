@@ -13,8 +13,11 @@ TIMESTAMP_COL = "Process step start"
 USER_COL = "User name"
 DURATION_COL = "Activity duration (ms)"
 USER_UUID_COL = "User UUID"
+APP_COL = "Application name"
 COPY_COL = "Copy No."
 PASTE_COL = "Paste No."
+CLICKS_COL = "Clicks No."
+TEXT_COL = "Text entries No."
 
 REQUIRED_COLUMNS = {ACTIVITY_COL, CASE_COL, TIMESTAMP_COL, USER_COL, DURATION_COL}
 
@@ -67,9 +70,12 @@ def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df["time:timestamp"] = pd.to_datetime(df[TIMESTAMP_COL], errors="coerce", utc=False)
     df = df.dropna(subset=["time:timestamp", "concept:name"])
     df["org:resource"] = df[USER_COL].fillna("").str.strip()
+    df["application_name"] = df[APP_COL].fillna("").str.strip() if APP_COL in df.columns else ""
     df["duration_ms"] = pd.to_numeric(df[DURATION_COL], errors="coerce").fillna(0)
     df["copy_count"] = pd.to_numeric(df.get(COPY_COL, 0), errors="coerce").fillna(0)
     df["paste_count"] = pd.to_numeric(df.get(PASTE_COL, 0), errors="coerce").fillna(0)
+    df["clicks_no"] = pd.to_numeric(df.get(CLICKS_COL, 0), errors="coerce").fillna(0)
+    df["text_entries_no"] = pd.to_numeric(df.get(TEXT_COL, 0), errors="coerce").fillna(0)
 
     df = df.sort_values(["case:concept:name", "time:timestamp"]).reset_index(drop=True)
     return df
