@@ -2,7 +2,17 @@
 
 ## What This Is
 
-AI copilot that analyzes business process event logs, discovers process flows, identifies bottlenecks, recommends automation targets, and generates BPMN workflow definitions.
+AI copilot that analyzes **Task Mining data from KYP.ai** — recordings of what employees actually do at their computers (clicks, keystrokes, app switches). The copilot discovers real process flows, identifies bottlenecks and manual waste, recommends automation targets (RPA, integrations), and generates BPMN workflow definitions.
+
+## Data Reality
+
+The dataset is **Task Mining, NOT traditional process mining**. Key differences:
+- Raw data = individual user interactions (mouse, keyboard), not business events
+- `Business ID` is often `NOT_FOUND` — cases must be inferred from user sessions
+- Files are HUGE (up to 163MB each, 1.6GB total) — always use chunked reading
+- `Process step` column = the meaningful grouping level, not individual interactions
+- A reference BPMN model is provided for comparison
+- The dataset is in `Process-to-Automation Copilot Challenge/Dataset/` (gitignored, NEVER commit)
 
 ## Architecture
 
@@ -20,8 +30,8 @@ data/              → Sample event log CSVs
 
 | Module | Owner | Scope |
 |--------|-------|-------|
-| `backend/pipeline/` | pipeline-owner | Data ingestion, pm4py, process discovery, variant analysis |
-| `backend/copilot/` | copilot-owner | AI reasoning, BPMN generation, recommendations |
+| `backend/pipeline/` | pipeline-owner | Task Mining data ingestion, session construction, process discovery, bottleneck detection |
+| `backend/copilot/` | copilot-owner | AI reasoning, RPA/automation recommendations, BPMN generation, reference model comparison |
 | `frontend/` + `backend/api/` | mateusz | UI, API glue, integration |
 | `contracts/` | consensus | Changed only when all agree |
 

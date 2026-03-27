@@ -36,6 +36,9 @@ data/*.json
 !data/sample_*.csv
 !data/README.md
 
+# Task pack dataset (1.6GB+ — NEVER commit this)
+Process-to-Automation Copilot Challenge/
+
 # Outputs
 outputs/
 *.bpmn

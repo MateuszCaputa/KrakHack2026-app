@@ -1,50 +1,67 @@
 # Copilot Module
 
 **Owner:** copilot-owner
-**Purpose:** AI agent that analyzes PipelineOutput, recommends automation targets, and generates BPMN workflow definitions.
+**Purpose:** AI agent that analyzes PipelineOutput, recommends automation targets (especially RPA opportunities), and generates BPMN workflow definitions.
+
+## Context
+
+The data comes from **Task Mining** — recording what employees actually do at their computers. The copilot's job is to:
+1. Understand the discovered process
+2. Compare it against the reference BPMN model (provided in dataset)
+3. Find steps that are repetitive, manual, or wasteful
+4. Recommend which steps to automate (RPA, API integration, workflow rules)
+5. Generate an optimized BPMN definition
 
 ## What To Build (Priority Order)
 
 ### P0 — Must have for demo
-1. **Process Analyzer** — Takes PipelineOutput, uses an LLM to generate a natural language summary of the process: what it does, how many variants, key patterns. File: `analyzer.py`
-2. **Bottleneck Explainer** — Takes bottleneck data, uses LLM to explain WHY each bottleneck matters and what causes it. File: `explainer.py`
-3. **Automation Recommender** — Analyzes activities and bottlenecks. Recommends which steps to automate/eliminate/simplify/parallelize. Each recommendation has: type, reasoning, impact, priority. File: `recommender.py`
-4. **BPMN Generator** — Generates valid BPMN 2.0 XML from the discovered process. The BPMN should represent the optimized process (after applying recommendations). File: `bpmn_generator.py`
+1. **Process Analyzer** — Takes PipelineOutput, generates a natural language summary: what the process does, key steps, how many users/variants. File: `analyzer.py`
+2. **Automation Recommender** — The core value. Analyzes process steps for:
+   - High copy-paste counts → RPA candidate
+   - Repetitive app switching → integration candidate
+   - Long passive time → waiting/bottleneck
+   - Manual data entry → form automation candidate
+   Each recommendation: type, target step, reasoning, impact, priority. File: `recommender.py`
+3. **BPMN Generator** — Generate valid BPMN 2.0 XML from the discovered process. Use the reference BPMN (`model (67).bpmn` in the dataset) as a template for structure/format. File: `bpmn_generator.py`
+4. **Reference Comparison** — Compare discovered process against the provided reference BPMN. Highlight deviations, missing steps, extra steps. File: `comparison.py`
 
 ### P1 — Nice to have
-5. **Decision Rules** — Extract decision points from variant analysis and generate formal IF/THEN rules. File: `decision_rules.py`
-6. **Process Variables** — Identify variables needed for the workflow engine (form fields, data inputs). File: `variables.py`
+5. **Bottleneck Explainer** — Takes bottleneck data, explains WHY each matters. File: `explainer.py`
+6. **Decision Rules** — Extract decision points and generate IF/THEN rules. File: `decision_rules.py`
 
 ### P2 — Stretch goals
-7. **Cost Analysis** — Estimate time/cost saved per recommendation. File: `cost_analysis.py`
-8. **What-If Simulation** — Show before/after metrics if recommendations are applied. File: `simulation.py`
+7. **Cost Estimation** — Estimate time saved per recommendation based on actual duration data. File: `cost_analysis.py`
+8. **Process Variables** — Identify variables for the workflow engine. File: `variables.py`
 
-## Input Contract
+## Input
 
-Your module consumes `PipelineOutput` (defined in `backend/models.py`). During development, mock this using sample data — don't wait for the pipeline module.
+- `PipelineOutput` from `backend/models.py` — mock it during dev
+- Reference BPMN: `Process-to-Automation Copilot Challenge/Dataset/model (67).bpmn`
 
-## Output Contract
+## Output
 
-Your module produces `CopilotOutput` (defined in `backend/models.py`). See `contracts/copilot_output.json` for the full schema.
+`CopilotOutput` from `backend/models.py`. See `contracts/copilot_output.json`.
 
 ## LLM Integration
 
-We will determine the exact LLM provider after the task pack drops at 6pm. For now, design your functions to accept a generic `analyze(prompt: str) -> str` interface. The LLM call will be wired up later.
+We will determine the exact LLM provider when ready. Design functions with a clean interface:
 
-Structure prompts clearly:
 ```python
-def build_analysis_prompt(pipeline_output: PipelineOutput) -> str:
-    """Build a prompt for the LLM to analyze the process."""
+async def analyze_process(pipeline_output: PipelineOutput, prompt: str) -> str:
+    """Send analysis prompt to LLM, return response."""
     ...
 ```
 
+For now, mock LLM calls in development. Structure prompts clearly — the LLM will receive structured data about the process and return analysis.
+
 ## Key Libraries
 - `pydantic` — data models
-- LLM client (TBD — likely google-generativeai for free Gemini)
-- `xml.etree.ElementTree` or a BPMN library for XML generation
+- `xml.etree.ElementTree` — BPMN XML parsing and generation
+- LLM client (TBD — likely google-generativeai for free Gemini API)
 
 ## Testing
 - `pytest backend/copilot/tests/ -x`
-- Mock the LLM calls in tests (don't hit real APIs)
-- Test BPMN output is valid XML
-- Test recommendations cover all bottleneck types
+- Mock LLM calls in tests
+- Test BPMN output is valid XML with correct BPMN 2.0 namespace
+- Test recommendations cover different automation types
+- Test reference comparison against the provided model (67).bpmn
