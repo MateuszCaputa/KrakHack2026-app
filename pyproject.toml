@@ -28,6 +28,8 @@ dependencies = [
     "pydantic>=2.10.0",
     # HTTP client
     "httpx>=0.28.0",
+    # LLM
+    "anthropic>=0.40.0",
 ]
 
 [project.optional-dependencies]
