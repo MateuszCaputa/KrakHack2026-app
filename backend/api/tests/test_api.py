@@ -24,7 +24,7 @@ def test_upload_csv():
     assert resp.status_code == 200
     data = resp.json()
     assert "process_id" in data
-    assert data["status"] == "uploaded"
+    assert data["status"] == "ready"
 
 
 def test_upload_rejects_non_csv():
