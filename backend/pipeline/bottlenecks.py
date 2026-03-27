@@ -8,6 +8,10 @@ CASE_COL = "case:concept:name"
 ACTIVITY_COL = "concept:name"
 TIMESTAMP_COL = "time:timestamp"
 
+# Transitions longer than this are cross-session gaps (overnight, weekends),
+# not real process bottlenecks — exclude them from analysis.
+MAX_INTRA_SESSION_SECONDS = 4 * 3600  # 4 hours
+
 SEVERITY_THRESHOLDS = {
     "critical": 3600,   # > 1 hour
     "high": 600,        # > 10 minutes
@@ -27,8 +31,8 @@ def _assign_severity(avg_wait_seconds: float) -> str:
 def detect_bottlenecks(df: pd.DataFrame) -> list[Bottleneck]:
     """Detect bottlenecks by computing wait times between consecutive activities.
 
-    A bottleneck is a transition (A → B) with high average wait time.
-    Also considers copy-paste count as a signal for manual effort.
+    Cross-session transitions (gaps > 4 hours) are excluded — they represent
+    overnight breaks or weekends, not real process delays.
     """
     df = df.sort_values([CASE_COL, TIMESTAMP_COL])
 
@@ -40,6 +44,9 @@ def detect_bottlenecks(df: pd.DataFrame) -> list[Bottleneck]:
     transitions["wait_seconds"] = (
         transitions["next_timestamp"] - transitions[TIMESTAMP_COL]
     ).dt.total_seconds().clip(lower=0)
+
+    # Drop cross-session gaps
+    transitions = transitions[transitions["wait_seconds"] <= MAX_INTRA_SESSION_SECONDS]
 
     stats = (
         transitions
