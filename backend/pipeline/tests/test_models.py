@@ -3,7 +3,7 @@
 import csv
 from pathlib import Path
 
-from backend.models import PipelineOutput, ProcessVariant, ProcessStep, ProcessStatistics
+from backend.models import PipelineOutput, ProcessVariant, Activity, ProcessStatistics
 
 
 SAMPLE_CSV = Path(__file__).parents[3] / "data" / "sample_event_log.csv"
@@ -23,8 +23,8 @@ def test_sample_csv_exists_and_parses():
 def test_pipeline_output_model_roundtrip():
     output = PipelineOutput(
         process_id="test-001",
-        process_steps=[
-            ProcessStep(
+        activities=[
+            Activity(
                 name="Working on kyp-backend",
                 frequency=150,
                 avg_duration_seconds=3600,
@@ -47,14 +47,12 @@ def test_pipeline_output_model_roundtrip():
         statistics=ProcessStatistics(
             total_cases=8,
             total_events=10000,
-            total_process_steps=9,
+            total_activities=9,
             total_variants=4,
-            total_users=5,
-            total_applications=12,
         ),
     )
     data = output.model_dump()
     restored = PipelineOutput.model_validate(data)
     assert restored.process_id == "test-001"
-    assert len(restored.process_steps) == 1
-    assert restored.process_steps[0].copy_paste_count == 25
+    assert len(restored.activities) == 1
+    assert restored.activities[0].copy_paste_count == 25

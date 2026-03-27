@@ -25,8 +25,8 @@ class RawActivity(BaseModel):
 
 # --- Pipeline Output Models ---
 
-class ProcessStep(BaseModel):
-    """An aggregated process step (not raw interaction)."""
+class Activity(BaseModel):
+    """An aggregated activity/process step."""
     name: str
     frequency: int
     avg_duration_seconds: float
@@ -34,8 +34,12 @@ class ProcessStep(BaseModel):
     max_duration_seconds: float | None = None
     applications: list[str] = []
     performers: list[str] = []
-    manual_interaction_count: int = 0  # clicks + text entries
-    copy_paste_count: int = 0  # copy + paste actions
+    manual_interaction_count: int = 0
+    copy_paste_count: int = 0
+
+
+# Keep alias for frontend compatibility
+ProcessStep = Activity
 
 
 class ProcessVariant(BaseModel):
@@ -47,8 +51,8 @@ class ProcessVariant(BaseModel):
 
 
 class Bottleneck(BaseModel):
-    from_step: str
-    to_step: str
+    from_activity: str
+    to_activity: str
     avg_wait_seconds: float
     max_wait_seconds: float | None = None
     case_count: int | None = None
@@ -76,14 +80,14 @@ class ProcessMap(BaseModel):
 class ProcessStatistics(BaseModel):
     total_cases: int
     total_events: int
-    total_process_steps: int
+    total_activities: int
     total_variants: int
-    total_users: int
-    total_applications: int
+    total_users: int = 0
+    total_applications: int = 0
     avg_case_duration_seconds: float | None = None
     median_case_duration_seconds: float | None = None
-    date_range_start: str | None = None
-    date_range_end: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
 
 
 class ApplicationUsage(BaseModel):
@@ -96,7 +100,7 @@ class ApplicationUsage(BaseModel):
 
 class PipelineOutput(BaseModel):
     process_id: str
-    process_steps: list[ProcessStep]
+    activities: list[Activity]
     variants: list[ProcessVariant]
     bottlenecks: list[Bottleneck]
     process_map: ProcessMap
@@ -109,13 +113,13 @@ class PipelineOutput(BaseModel):
 class Recommendation(BaseModel):
     id: int
     type: str  # automate, eliminate, simplify, parallelize, reassign
-    target: str  # process step or transition being targeted
+    target: str
     reasoning: str
     impact: str  # low, medium, high
     priority: int  # 1-5
     estimated_time_saved_seconds: float | None = None
     affected_cases_percentage: float | None = None
-    automation_type: str | None = None  # RPA, API integration, workflow rule, etc.
+    automation_type: str | None = None
 
 
 class DecisionRule(BaseModel):
@@ -139,4 +143,4 @@ class CopilotOutput(BaseModel):
     bpmn_xml: str
     decision_rules: list[DecisionRule] = []
     process_variables: list[ProcessVariable] = []
-    reference_bpmn_comparison: str | None = None  # comparison with provided model
+    reference_bpmn_comparison: str | None = None
