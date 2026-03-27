@@ -48,15 +48,74 @@ function isCleanName(s: string): boolean {
   return true;
 }
 
+/** Topological BFS walk of the process map — mirrors backend _topological_sequence. */
+function extractSequenceFromProcessMap(pipeline: PipelineOutput): string[] | null {
+  const { nodes, edges } = pipeline.process_map;
+  if (!edges.length || nodes.length < 3) return null;
+
+  const nodeLabels = new Map(nodes.map(n => [n.id, n.label]));
+  const outgoing = new Map<string, Array<{ target: string; weight: number }>>();
+  const inDegree = new Map<string, number>();
+
+  for (const n of nodes) { outgoing.set(n.id, []); inDegree.set(n.id, 0); }
+  for (const e of edges) {
+    outgoing.get(e.source)?.push({ target: e.target, weight: e.weight });
+    inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1);
+  }
+
+  let roots = nodes.filter(n => (inDegree.get(n.id) ?? 0) === 0).map(n => n.id);
+  if (!roots.length) {
+    roots = [nodes.reduce((best, n) =>
+      (outgoing.get(n.id)?.length ?? 0) > (outgoing.get(best)?.length ?? 0) ? n.id : best
+    , nodes[0].id)];
+  }
+
+  const queue = [...roots];
+  const visited = new Set<string>();
+  const result: string[] = [];
+
+  while (queue.length > 0) {
+    const nid = queue.shift()!;
+    if (visited.has(nid)) continue;
+    visited.add(nid);
+    const label = nodeLabels.get(nid) ?? nid;
+    if (isCleanName(label)) result.push(label);
+    const children = [...(outgoing.get(nid) ?? [])].sort((a, b) => b.weight - a.weight);
+    for (const { target } of children) {
+      if (!visited.has(target)) queue.push(target);
+    }
+  }
+
+  return result.length >= 3 ? result.slice(0, MAX_TASKS) : null;
+}
+
+/** Build edge weight map: label → label → weight (for frequency display on arrows). */
+function buildEdgeWeights(pipeline: PipelineOutput): Map<string, Map<string, number>> {
+  const { nodes, edges } = pipeline.process_map;
+  const idToLabel = new Map(nodes.map(n => [n.id, n.label]));
+  const weights = new Map<string, Map<string, number>>();
+  for (const e of edges) {
+    const src = idToLabel.get(e.source) ?? e.source;
+    const tgt = idToLabel.get(e.target) ?? e.target;
+    if (!weights.has(src)) weights.set(src, new Map());
+    weights.get(src)!.set(tgt, e.weight);
+  }
+  return weights;
+}
+
 function extractSequence(pipeline: PipelineOutput): string[] {
-  // Try top variant — require at least 3 *unique* steps (dedup before checking)
+  // 1. Try actual process map (topological sort from pm4py discovery)
+  const fromMap = extractSequenceFromProcessMap(pipeline);
+  if (fromMap) return fromMap;
+
+  // 2. Try top variant — require at least 3 *unique* steps
   if (pipeline.variants.length > 0) {
     const best = [...pipeline.variants].sort((a, b) => b.case_count - a.case_count)[0];
     const unique = [...new Set(best.sequence.filter(isCleanName))];
     if (unique.length >= 3) return unique.slice(0, MAX_TASKS);
   }
 
-  // Fall through to activities sorted by frequency (the dominant workflow)
+  // 3. Fall through to activities sorted by frequency
   if (pipeline.activities.length > 0) {
     const names = [...pipeline.activities]
       .sort((a, b) => b.frequency - a.frequency)
@@ -244,7 +303,7 @@ function Legend() {
 
 /* ─────────────────────────── diagram canvas ─────────────────────── */
 
-function DiagramCanvas({ nodes, boxes }: { nodes: DiagramNode[]; boxes: Map<string, Box> }) {
+function DiagramCanvas({ nodes, boxes, edgeWeights }: { nodes: DiagramNode[]; boxes: Map<string, Box>; edgeWeights: Map<string, Map<string, number>> }) {
   const { vw, vh } = useMemo(() => {
     let mx = 0, my = 0;
     for (const b of boxes.values()) { mx = Math.max(mx, b.x + b.w); my = Math.max(my, b.y + b.h + 44); }
@@ -313,8 +372,24 @@ function DiagramCanvas({ nodes, boxes }: { nodes: DiagramNode[]; boxes: Map<stri
             const fb = boxes.get(id);
             const tb = boxes.get(nodeIds[i + 1]);
             if (!fb || !tb) return null;
+            const srcNode = nodes[i];
+            const tgtNode = nodes[i + 1];
+            const weight = edgeWeights.get(srcNode?.label ?? '')?.get(tgtNode?.label ?? '');
+            const d = edgePath(fb, tb);
+            // midpoint for label
+            const sx = fb.x + fb.w, sy = fb.y + fb.h / 2;
+            const tx = tb.x,         ty = tb.y + tb.h / 2;
+            const mx = (sx + tx) / 2, my = (sy + ty) / 2;
             return (
-              <path key={`e${i}`} d={edgePath(fb, tb)} fill="none" stroke="#2d3748" strokeWidth={2} strokeDasharray="6 3" markerEnd="url(#arr)" className="fp" />
+              <g key={`e${i}`}>
+                <path d={d} fill="none" stroke="#2d3748" strokeWidth={2} strokeDasharray="6 3" markerEnd="url(#arr)" className="fp" />
+                {weight != null && (
+                  <g>
+                    <rect x={mx - 14} y={my - 9} width={28} height={15} rx={4} fill="#0d1117" stroke="#2d3748" strokeWidth={1} />
+                    <text x={mx} y={my + 3} textAnchor="middle" fill="#6b7280" fontSize={9} fontWeight={600} fontFamily="system-ui,sans-serif">{weight}×</text>
+                  </g>
+                )}
+              </g>
             );
           })}
 
@@ -339,12 +414,15 @@ export interface BpmnViewerProps {
 }
 
 export function BpmnViewer({ pipeline, recommendations }: BpmnViewerProps) {
-  const { nodes, boxes } = useMemo(() => {
+  const { nodes, boxes, edgeWeights, sourceLabel } = useMemo(() => {
     const seq = extractSequence(pipeline);
+    const fromMap = extractSequenceFromProcessMap(pipeline);
     const colorMap = buildColorMap(seq, pipeline, recommendations);
     const ns = buildNodes(seq, colorMap);
     const bs = computeBoxes(ns);
-    return { nodes: ns, boxes: bs };
+    const ew = buildEdgeWeights(pipeline);
+    const src = fromMap ? 'Process Map (pm4py)' : pipeline.variants.length > 0 ? 'Top Variant' : 'Activity Frequency';
+    return { nodes: ns, boxes: bs, edgeWeights: ew, sourceLabel: src };
   }, [pipeline, recommendations]);
 
   return (
@@ -357,6 +435,9 @@ export function BpmnViewer({ pipeline, recommendations }: BpmnViewerProps) {
           <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
         </div>
         <span className="text-[11px] text-white/40 font-medium tracking-wide ml-1">BPMN 2.0 — Process Workflow</span>
+        <span className="text-[10px] text-white/25 border border-white/10 rounded px-1.5 py-0.5 ml-1">
+          Source: {sourceLabel}
+        </span>
         <div className="ml-auto">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-950/60 border border-green-700/40 text-[10px] font-semibold text-green-400">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
@@ -367,7 +448,7 @@ export function BpmnViewer({ pipeline, recommendations }: BpmnViewerProps) {
 
       {/* canvas */}
       <div className="h-[620px]">
-        <DiagramCanvas nodes={nodes} boxes={boxes} />
+        <DiagramCanvas nodes={nodes} boxes={boxes} edgeWeights={edgeWeights} />
       </div>
 
       <Legend />
