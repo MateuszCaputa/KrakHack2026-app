@@ -189,7 +189,8 @@ All endpoints return JSON. Errors return `{ "error": "message" }` with appropria
 - Use `data/sample_*.csv` as test fixtures
 - Test the contract: assert output matches Pydantic model
 - Test edge cases: empty logs, single-activity processes, missing timestamps
-- Frontend: no tests (hackathon — demo quality, not production)
+- Frontend: no automated tests — verify visually via dev server
+- **Never commit code that breaks existing tests.** Run `pytest -x` before every commit. If tests fail, fix them first.
 
 ## Demo Scope (DO NOT EXCEED)
 
