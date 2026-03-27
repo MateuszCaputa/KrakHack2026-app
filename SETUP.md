@@ -12,8 +12,8 @@ You need these installed. If you don't have them, install them first.
 ## 1. Clone and Install (2 min)
 
 ```bash
-git clone <REPO_URL>
-cd hackathon-app
+git clone git@github.com:MateuszCaputa/KrakHack2026-app.git
+cd KrakHack2026-app
 
 # Python backend
 python3 -m venv .venv
@@ -50,7 +50,24 @@ Inside Claude Code, type:
 
 Set tool permissions to allow all — you don't want confirmation dialogs slowing you down during the hackathon. Approve everything.
 
-## 3. Verify Everything Works
+## 3. Claude Code Plugins (1 min)
+
+Install only these plugins. Everything else is overhead that burns your Pro token budget.
+
+```bash
+# Inside Claude Code, run:
+/plugin
+
+# Enable ONLY these (disable everything else):
+# - context7         → library doc lookup (pm4py, FastAPI, etc.)
+# - commit-commands   → fast /commit workflow
+# - superpowers       → TDD, debugging, verification skills
+# - claude-code-setup → helps configure Claude Code (can disable after setup)
+```
+
+**Do NOT enable:** vercel, figma, sentry, firebase, code-simplifier, explanatory-output-style, greptile, swift-lsp. They are irrelevant to this project and waste tokens on every message.
+
+## 4. Verify Everything Works
 
 ```bash
 # In project root, with venv activated
@@ -61,7 +78,7 @@ cd frontend && npm run dev
 # Should open on http://localhost:3000
 ```
 
-## 4. Your Module
+## 5. Your Module
 
 Check `CLAUDE.md` for which module you own. You work ONLY in your directory during active hours.
 
@@ -71,7 +88,7 @@ Check `CLAUDE.md` for which module you own. You work ONLY in your directory duri
 | copilot | `backend/copilot/` | AI agent that analyzes pipeline output, recommends automation, generates BPMN XML |
 | frontend + api | `frontend/` + `backend/api/` | Demo UI and FastAPI glue layer (Mateusz only) |
 
-## 5. Development Workflow
+## 6. Development Workflow
 
 ```bash
 # Start Claude Code in your module directory
@@ -105,7 +122,7 @@ pytest backend/copilot/tests/ -x     # copilot module
 pytest backend/ -x                   # everything
 ```
 
-## 6. Communication
+## 7. Communication
 
 - **Discord** for coordination
 - Say "pipeline" or "copilot" to refer to modules/owners
