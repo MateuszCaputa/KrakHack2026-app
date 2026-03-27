@@ -1,0 +1,6 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CopilotInput",
+  "description": "Input to the AI copilot - identical to PipelineOutput. This file exists for clarity.",
+  "$ref": "pipeline_output.json"
+}

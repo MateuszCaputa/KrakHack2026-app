@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CopilotOutput",
+  "description": "Output of the AI copilot after analyzing a discovered process",
+  "type": "object",
+  "required": ["process_id", "recommendations", "bpmn_xml", "summary"],
+  "properties": {
+    "process_id": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string",
+      "description": "AI-generated natural language summary of the process analysis"
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "activity", "reasoning", "impact", "priority"],
+        "properties": {
+          "id": { "type": "integer" },
+          "type": {
+            "type": "string",
+            "enum": ["automate", "eliminate", "simplify", "parallelize", "reassign"]
+          },
+          "activity": { "type": "string" },
+          "reasoning": {
+            "type": "string",
+            "description": "AI explanation of why this recommendation is made"
+          },
+          "impact": {
+            "type": "string",
+            "enum": ["low", "medium", "high"]
+          },
+          "priority": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "estimated_time_saved_seconds": { "type": "number" },
+          "affected_cases_percentage": { "type": "number" }
+        }
+      }
+    },
+    "bpmn_xml": {
+      "type": "string",
+      "description": "Generated BPMN 2.0 XML definition of the optimized process"
+    },
+    "decision_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "condition", "action"],
+        "properties": {
+          "rule_id": { "type": "string" },
+          "condition": { "type": "string" },
+          "action": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "process_variables": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string", "enum": ["string", "number", "boolean", "date"] },
+          "description": { "type": "string" },
+          "source_activity": { "type": "string" }
+        }
+      }
+    }
+  }
+}

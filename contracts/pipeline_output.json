@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PipelineOutput",
+  "description": "Output of the process mining pipeline after analyzing an event log",
+  "type": "object",
+  "required": ["process_id", "activities", "variants", "bottlenecks", "process_map", "statistics"],
+  "properties": {
+    "process_id": {
+      "type": "string",
+      "description": "Unique identifier for this process analysis"
+    },
+    "activities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "frequency", "avg_duration_seconds"],
+        "properties": {
+          "name": { "type": "string" },
+          "frequency": { "type": "integer" },
+          "avg_duration_seconds": { "type": "number" },
+          "min_duration_seconds": { "type": "number" },
+          "max_duration_seconds": { "type": "number" },
+          "performers": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
+    "variants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["variant_id", "sequence", "case_count", "percentage"],
+        "properties": {
+          "variant_id": { "type": "integer" },
+          "sequence": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "case_count": { "type": "integer" },
+          "percentage": { "type": "number" },
+          "avg_total_duration_seconds": { "type": "number" }
+        }
+      }
+    },
+    "bottlenecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from_activity", "to_activity", "avg_wait_seconds", "severity"],
+        "properties": {
+          "from_activity": { "type": "string" },
+          "to_activity": { "type": "string" },
+          "avg_wait_seconds": { "type": "number" },
+          "max_wait_seconds": { "type": "number" },
+          "case_count": { "type": "integer" },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          }
+        }
+      }
+    },
+    "process_map": {
+      "type": "object",
+      "description": "Graph representation of the discovered process",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "frequency": { "type": "integer" }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source", "target", "weight"],
+            "properties": {
+              "source": { "type": "string" },
+              "target": { "type": "string" },
+              "weight": { "type": "integer" },
+              "avg_duration_seconds": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "statistics": {
+      "type": "object",
+      "required": ["total_cases", "total_events", "total_activities", "total_variants"],
+      "properties": {
+        "total_cases": { "type": "integer" },
+        "total_events": { "type": "integer" },
+        "total_activities": { "type": "integer" },
+        "total_variants": { "type": "integer" },
+        "avg_case_duration_seconds": { "type": "number" },
+        "median_case_duration_seconds": { "type": "number" },
+        "start_date": { "type": "string", "format": "date-time" },
+        "end_date": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}
