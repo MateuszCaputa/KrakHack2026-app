@@ -26,23 +26,30 @@ def generate_bpmn(pipeline_output: PipelineOutput) -> str:
 
 
 def _extract_main_sequence(pipeline_output: PipelineOutput) -> list[str]:
-    """Extract the main activity sequence for BPMN generation."""
+    """Extract meaningful activity sequence for BPMN generation.
+
+    Strategy: use the longest variant if it has enough steps,
+    otherwise fall back to top activities by frequency.
+    """
+    # Try longest variant first (most complete process path)
     if pipeline_output.variants:
-        raw_sequence = pipeline_output.variants[0].sequence
-    elif pipeline_output.activities:
-        raw_sequence = [a.name for a in pipeline_output.activities[:15]]
-    else:
-        return ["Start Process", "Process Step", "Complete"]
+        longest = max(pipeline_output.variants, key=lambda v: len(v.sequence))
+        if len(longest.sequence) >= 3:
+            seen: set[str] = set()
+            sequence = []
+            for step in longest.sequence:
+                if step not in seen:
+                    seen.add(step)
+                    sequence.append(step)
+            if len(sequence) >= 3:
+                return sequence[:15]
 
-    # Deduplicate while preserving order (cycles become single nodes)
-    seen: set[str] = set()
-    sequence = []
-    for step in raw_sequence:
-        if step not in seen:
-            seen.add(step)
-            sequence.append(step)
+    # Fall back to top activities by frequency
+    if pipeline_output.activities:
+        sorted_acts = sorted(pipeline_output.activities, key=lambda a: a.frequency, reverse=True)
+        return [a.name for a in sorted_acts[:12]]
 
-    return sequence[:15]  # cap at 15 tasks for readability
+    return ["Start Process", "Process Step", "Complete"]
 
 
 def _sanitize_id(name: str, prefix: str = "task") -> str:
