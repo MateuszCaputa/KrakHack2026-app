@@ -4,12 +4,15 @@ import uuid
 import shutil
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, HTTPException
+# Root of the repo — used to locate the local Dataset folder
+REPO_ROOT = Path(__file__).parents[2]
+LOCAL_DATASET_DIR = REPO_ROOT / "Dataset"
+
+from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from backend.api.store import ProcessStore
-from backend.pipeline.pipeline import run_pipeline as execute_pipeline
 
 UPLOAD_DIR = Path(__file__).parent / "storage"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -19,7 +22,7 @@ store = ProcessStore()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -32,24 +35,25 @@ async def health():
 
 @app.post("/api/upload")
 async def upload_event_log(file: UploadFile):
-    """Upload a CSV event log. File must be an Activity Sequence Export CSV."""
+    """Upload a CSV event log. Saves it ready for pipeline processing."""
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(400, "Only CSV files are accepted")
 
     process_id = str(uuid.uuid4())[:8]
 
-    # Pipeline expects a directory of CSVs — create one per upload
+    # Save to process-specific directory with filename matching pipeline's glob pattern
     process_dir = UPLOAD_DIR / process_id
     process_dir.mkdir(exist_ok=True)
 
-    # Save with original-ish name so pipeline glob picks it up
-    dest = process_dir / f"Activity Sequence Export - {file.filename}"
-    with open(dest, "wb") as f:
+    safe_name = f"Activity Sequence Export - {file.filename}"
+    file_path = process_dir / safe_name
+
+    with open(file_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    store.set_status(process_id, "uploaded", file_path=str(process_dir))
+    store.set_status(process_id, "uploaded", file_path=str(file_path), process_dir=str(process_dir))
 
-    return {"process_id": process_id, "status": "uploaded", "filename": file.filename}
+    return {"process_id": process_id, "status": "ready", "filename": file.filename}
 
 
 @app.get("/api/processes")
@@ -66,31 +70,32 @@ async def get_process(process_id: str):
         raise HTTPException(404, f"Process {process_id} not found")
 
     if not entry.get("pipeline_output"):
-        return {"process_id": process_id, "status": entry.get("status", "uploaded"), "pipeline_output": None}
+        raise HTTPException(202, detail="Pipeline processing not yet complete")
 
     return entry["pipeline_output"]
 
 
 @app.post("/api/process/{process_id}/run-pipeline")
 async def run_pipeline_endpoint(process_id: str):
-    """Trigger pipeline analysis on uploaded files."""
+    """Run process mining pipeline on the uploaded file."""
     entry = store.get(process_id)
     if not entry:
         raise HTTPException(404, f"Process {process_id} not found")
 
-    file_path = entry.get("file_path")
-    if not file_path or not Path(file_path).exists():
-        raise HTTPException(400, "Upload directory not found")
+    process_dir = entry.get("process_dir")
+    if not process_dir or not Path(process_dir).exists():
+        raise HTTPException(400, "Upload directory not found — upload a file first")
 
     store.set_status(process_id, "processing")
 
     try:
-        pipeline_output = execute_pipeline(file_path, process_id=process_id)
+        from backend.pipeline.pipeline import run_pipeline as execute_pipeline
+        pipeline_output = execute_pipeline(process_dir, process_id=process_id)
         store.set_pipeline_output(process_id, pipeline_output.model_dump())
-        return {"process_id": process_id, "status": "pipeline_complete"}
-    except Exception as e:
-        store.set_status(process_id, "error")
-        raise HTTPException(500, f"Pipeline failed: {str(e)}")
+        return {"process_id": process_id, "status": "pipeline_complete", "result": pipeline_output.model_dump()}
+    except Exception as exc:
+        store.set_status(process_id, "error", error=str(exc))
+        raise HTTPException(500, f"Pipeline failed: {exc}")
 
 
 @app.post("/api/process/{process_id}/analyze")
@@ -100,17 +105,23 @@ async def analyze_process(process_id: str):
     if not entry:
         raise HTTPException(404, f"Process {process_id} not found")
 
-    if not entry.get("pipeline_output"):
+    pipeline_output_dict = entry.get("pipeline_output")
+    if not pipeline_output_dict:
         raise HTTPException(400, "Run pipeline first before analyzing")
 
     store.set_status(process_id, "analyzing")
 
-    # TODO: wire copilot module when ready
-    # from backend.copilot.run import run_copilot
-    # copilot_output = run_copilot(PipelineOutput.model_validate(entry["pipeline_output"]))
-    # store.set_copilot_output(process_id, copilot_output.model_dump())
+    try:
+        from backend.models import PipelineOutput
+        from backend.copilot.copilot import run_copilot
 
-    return {"process_id": process_id, "status": "analyzing"}
+        pipeline_output = PipelineOutput.model_validate(pipeline_output_dict)
+        copilot_output = run_copilot(pipeline_output)
+        store.set_copilot_output(process_id, copilot_output.model_dump())
+        return {"process_id": process_id, "status": "complete", "result": copilot_output.model_dump()}
+    except Exception as exc:
+        store.set_status(process_id, "error", error=str(exc))
+        raise HTTPException(500, f"Copilot analysis failed: {exc}")
 
 
 @app.get("/api/process/{process_id}/copilot")
@@ -126,6 +137,54 @@ async def get_copilot_output(process_id: str):
     return entry["copilot_output"]
 
 
+@app.post("/api/run-local")
+async def run_local_dataset():
+    """Run full pipeline + copilot on the local Dataset/ folder. No upload needed.
+
+    Use this endpoint in Swagger to test immediately without uploading any files.
+    Returns process_id you can use with the other endpoints.
+    """
+    if not LOCAL_DATASET_DIR.exists():
+        raise HTTPException(
+            404,
+            f"Dataset folder not found at: {LOCAL_DATASET_DIR}. "
+            "Make sure the Dataset/ folder is in the project root.",
+        )
+
+    process_id = str(uuid.uuid4())[:8]
+    store.set_status(process_id, "processing", process_dir=str(LOCAL_DATASET_DIR))
+
+    try:
+        from backend.pipeline.pipeline import run_pipeline as execute_pipeline
+        from backend.copilot.copilot import run_copilot
+
+        pipeline_output = execute_pipeline(str(LOCAL_DATASET_DIR), process_id=process_id)
+        store.set_pipeline_output(process_id, pipeline_output.model_dump())
+
+        copilot_output = run_copilot(pipeline_output)
+        store.set_copilot_output(process_id, copilot_output.model_dump())
+
+        return {
+            "process_id": process_id,
+            "status": "complete",
+            "summary": copilot_output.summary,
+            "recommendations_count": len(copilot_output.recommendations),
+            "top_recommendations": [
+                {
+                    "priority": r.priority,
+                    "type": r.type,
+                    "target": r.target,
+                    "impact": r.impact,
+                }
+                for r in copilot_output.recommendations[:5]
+            ],
+            "hint": f"Use process_id='{process_id}' with GET /api/process/{{id}}/copilot for full results",
+        }
+    except Exception as exc:
+        store.set_status(process_id, "error", error=str(exc))
+        raise HTTPException(500, f"Analysis failed: {exc}")
+
+
 @app.get("/api/process/{process_id}/bpmn")
 async def get_bpmn(process_id: str):
     """Return generated BPMN XML for a process."""
@@ -135,6 +194,6 @@ async def get_bpmn(process_id: str):
 
     copilot = entry.get("copilot_output")
     if not copilot or not copilot.get("bpmn_xml"):
-        raise HTTPException(202, detail="BPMN not yet generated")
+        raise HTTPException(202, detail="BPMN not yet generated — run analyze first")
 
     return Response(content=copilot["bpmn_xml"], media_type="application/xml")
