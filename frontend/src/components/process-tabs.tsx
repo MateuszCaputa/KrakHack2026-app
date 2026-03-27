@@ -21,6 +21,52 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'bpmn', label: 'BPMN' },
 ];
 
+interface CompressedSegment {
+  steps: string[];
+  count: number;
+}
+
+function compressSequence(seq: string[]): CompressedSegment[] {
+  if (seq.length <= 6) return seq.map((s) => ({ steps: [s], count: 1 }));
+
+  const result: CompressedSegment[] = [];
+  let i = 0;
+
+  while (i < seq.length) {
+    let bestLen = 0;
+    let bestCount = 0;
+
+    // Try pattern lengths 1-4
+    for (let patLen = 1; patLen <= Math.min(4, Math.floor((seq.length - i) / 2)); patLen++) {
+      let count = 1;
+      let j = i + patLen;
+      while (j + patLen <= seq.length) {
+        let match = true;
+        for (let k = 0; k < patLen; k++) {
+          if (seq[i + k] !== seq[j + k]) { match = false; break; }
+        }
+        if (!match) break;
+        count++;
+        j += patLen;
+      }
+      if (count >= 2 && count * patLen > bestCount * bestLen) {
+        bestLen = patLen;
+        bestCount = count;
+      }
+    }
+
+    if (bestLen > 0 && bestCount >= 2) {
+      result.push({ steps: seq.slice(i, i + bestLen), count: bestCount });
+      i += bestLen * bestCount;
+    } else {
+      result.push({ steps: [seq[i]], count: 1 });
+      i++;
+    }
+  }
+
+  return result;
+}
+
 interface ProcessTabsProps {
   pipeline: PipelineOutput;
   processId: string;
@@ -348,7 +394,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       {activeTab === 'variants' && (
         <div className="space-y-3">
           <p className="text-xs text-zinc-500">
-            Each variant is a unique path through the process. Higher percentage = more common path. Multiple variants indicate process inconsistency.
+            Each variant is a unique path through the process. Higher percentage = more common path. Loops highlighted in amber indicate repetitive patterns.
           </p>
           {variants.length === 0 ? (
             <p className="text-zinc-500 text-sm">No variants found.</p>
@@ -357,38 +403,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               .sort((a, b) => b.case_count - a.case_count)
               .slice(0, 10)
               .map((v) => (
-                <div
-                  key={v.variant_id}
-                  className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-start gap-4"
-                >
-                  <div className="text-right min-w-[64px]">
-                    <p className="text-sm font-semibold font-mono text-zinc-100">
-                      {v.percentage.toFixed(1)}%
-                    </p>
-                    <p className="text-xs text-zinc-500 mt-0.5">
-                      {v.case_count} cases
-                    </p>
-                    {v.avg_total_duration_seconds > 0 && (
-                      <p className="text-xs text-zinc-600 mt-0.5">
-                        {formatDuration(v.avg_total_duration_seconds)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex gap-1.5 flex-wrap items-center">
-                      {v.sequence.map((step, idx) => (
-                        <span key={idx} className="flex items-center gap-1.5">
-                          <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
-                            {step}
-                          </span>
-                          {idx < v.sequence.length - 1 && (
-                            <span className="text-zinc-600 text-xs">{'\u2192'}</span>
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <VariantCard key={v.variant_id} variant={v} />
               ))
           )}
         </div>
@@ -480,6 +495,85 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
           onDownloadBpmn={handleDownloadBpmn}
         />
       )}
+    </div>
+  );
+}
+
+const COLLAPSED_MAX = 12;
+
+function VariantCard({ variant: v }: { variant: ProcessTabsProps['pipeline']['variants'][number] }) {
+  const compressed = compressSequence(v.sequence);
+  const isLong = compressed.length > COLLAPSED_MAX;
+  const [expanded, setExpanded] = useState(!isLong);
+  const visible = expanded ? compressed : compressed.slice(0, COLLAPSED_MAX);
+  const hiddenCount = compressed.length - COLLAPSED_MAX;
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-start gap-4">
+      <div className="text-right min-w-[64px]">
+        <p className="text-sm font-semibold font-mono text-zinc-100">
+          {v.percentage.toFixed(1)}%
+        </p>
+        <p className="text-xs text-zinc-500 mt-0.5">
+          {v.case_count} cases
+        </p>
+        {v.avg_total_duration_seconds > 0 && (
+          <p className="text-xs text-zinc-600 mt-0.5">
+            {formatDuration(v.avg_total_duration_seconds)}
+          </p>
+        )}
+        {v.sequence.length > 5 && (
+          <p className="text-xs text-zinc-600 mt-0.5">
+            {v.sequence.length} steps
+          </p>
+        )}
+      </div>
+      <div className="flex-1">
+        <div className="flex gap-1.5 flex-wrap items-center">
+          {visible.map((segment, idx) => (
+            <span key={idx} className="flex items-center gap-1.5">
+              {segment.count > 1 ? (
+                <span className="flex items-center gap-0.5 border border-amber-800/50 rounded-full px-1 py-0.5 bg-amber-950/30">
+                  {segment.steps.map((step, si) => (
+                    <span key={si} className="flex items-center gap-0.5">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                        {step}
+                      </span>
+                      {si < segment.steps.length - 1 && (
+                        <span className="text-zinc-600 text-xs">{'\u2192'}</span>
+                      )}
+                    </span>
+                  ))}
+                  <span className="text-xs font-mono text-amber-400 ml-1">{'\u00d7'}{segment.count}</span>
+                </span>
+              ) : (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                  {segment.steps[0]}
+                </span>
+              )}
+              {idx < visible.length - 1 && (
+                <span className="text-zinc-600 text-xs">{'\u2192'}</span>
+              )}
+            </span>
+          ))}
+          {isLong && !expanded && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="text-xs px-2.5 py-1 rounded-full bg-blue-900/40 text-blue-400 border border-blue-800/50 hover:bg-blue-900/60 transition-colors"
+            >
+              +{hiddenCount} more
+            </button>
+          )}
+          {isLong && expanded && (
+            <button
+              onClick={() => setExpanded(false)}
+              className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              show less
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

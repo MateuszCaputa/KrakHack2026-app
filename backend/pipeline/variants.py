@@ -24,6 +24,8 @@ def discover_variants(df: pd.DataFrame) -> list[ProcessVariant]:
         .reset_index()
         .rename(columns={ACTIVITY_COL: "sequence"})
     )
+    # Collapse consecutive duplicate activities (e.g. [A,A,A,B,B,A] → [A,B,A])
+    case_sequences["sequence"] = case_sequences["sequence"].apply(_collapse_consecutive)
     case_sequences["sequence_key"] = case_sequences["sequence"].apply(tuple)
 
     case_durations = _compute_case_durations(df)
@@ -49,6 +51,17 @@ def discover_variants(df: pd.DataFrame) -> list[ProcessVariant]:
         ))
 
     return variants
+
+
+def _collapse_consecutive(seq: list[str]) -> list[str]:
+    """Remove consecutive duplicate activities: [A,A,B,B,A] → [A,B,A]."""
+    if not seq:
+        return seq
+    result = [seq[0]]
+    for item in seq[1:]:
+        if item != result[-1]:
+            result.append(item)
+    return result
 
 
 def _compute_case_durations(df: pd.DataFrame) -> pd.DataFrame:
