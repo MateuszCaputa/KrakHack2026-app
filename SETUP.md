@@ -91,12 +91,13 @@ Check `CLAUDE.md` for which module you own. You work ONLY in your directory duri
 ## 6. Development Workflow
 
 ```bash
-# Start Claude Code in your module directory
-cd backend/pipeline  # or backend/copilot
+# Start Claude Code from the PROJECT ROOT (not your module directory!)
+# It needs to see CLAUDE.md, contracts/, and your module README
+cd KrakHack2026-app
 claude
 
 # Tell Claude what to build — it reads CLAUDE.md automatically
-# Example prompt: "Read the CLAUDE.md, look at the contracts, and implement variant analysis"
+# Example prompt: "Read the CLAUDE.md and backend/pipeline/README.md, then build P0 item 1"
 ```
 
 ### Git workflow
