@@ -38,6 +38,7 @@ data/*.json
 
 # Task pack dataset (1.6GB+ — NEVER commit this)
 Process-to-Automation Copilot Challenge/Dataset/
+Dataset/
 
 # Outputs
 outputs/
