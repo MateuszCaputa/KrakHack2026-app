@@ -37,7 +37,7 @@ data/*.json
 !data/README.md
 
 # Task pack dataset (1.6GB+ — NEVER commit this)
-Process-to-Automation Copilot Challenge/
+Process-to-Automation Copilot Challenge/Dataset/
 
 # Outputs
 outputs/

@@ -11,8 +11,24 @@ The dataset is **Task Mining, NOT traditional process mining**. Key differences:
 - `Business ID` is often `NOT_FOUND` — cases must be inferred from user sessions
 - Files are HUGE (up to 163MB each, 1.6GB total) — always use chunked reading
 - `Process step` column = the meaningful grouping level, not individual interactions
-- A reference BPMN model is provided for comparison
+- A reference BPMN model is provided for comparison (`Process-to-Automation Copilot Challenge/Dataset/model (67).bpmn`)
+- A PDD report (.docx) describes process variants in business terms
 - The dataset is in `Process-to-Automation Copilot Challenge/Dataset/` (gitignored, NEVER commit)
+- The task PDF is in `Process-to-Automation Copilot Challenge/` (committed to repo)
+
+## Evaluation Criteria (from task brief)
+
+Judged on: **concept coherence, analysis accuracy, ability to interpret process data, and quality of result presentation.** The task is open-ended — no prescribed algorithms or tech. Full freedom in approach.
+
+## Key Detection Targets (from task brief)
+
+The copilot must specifically detect:
+1. **Context switches between applications** — frequent app-switching = friction
+2. **Manual copy-paste between systems** — prime RPA candidate (use Activity Heatmap data)
+3. **Repetitive manual steps** — clicks, text entries in patterns
+4. **Delays and waiting time** — passive time, gaps between steps
+5. **Process variants and deviations** — different paths from the common flow
+6. **Cycle detection** — rework loops, interrupted activities
 
 ## Architecture
 
