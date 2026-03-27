@@ -3,9 +3,11 @@
 import uuid
 import shutil
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Root of the repo — used to locate the local Dataset folder
 REPO_ROOT = Path(__file__).parents[2]
+load_dotenv(REPO_ROOT / ".env")
 LOCAL_DATASET_DIR = REPO_ROOT / "Dataset"
 
 from fastapi import FastAPI, UploadFile, HTTPException, BackgroundTasks
