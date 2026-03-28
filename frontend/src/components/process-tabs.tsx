@@ -438,23 +438,26 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       )}
 
       {/* Tab: Variants */}
-      {activeTab === 'variants' && (
+      {activeTab === 'variants' && (() => {
+        const sorted = [...variants].sort((a, b) => b.case_count - a.case_count);
+        const happyPathSteps = sorted.length > 0 ? new Set(sorted[0].sequence) : new Set<string>();
+        return (
         <div className="space-y-3">
           <p className="text-xs text-zinc-500">
-            Each variant is a unique path through the process. Higher percentage = more common path. Loops highlighted in amber indicate repetitive patterns.
+            Each variant is a unique path through the process. Higher percentage = more common path. Loops highlighted in amber indicate repetitive patterns. Steps not in the happy path are highlighted in orange.
           </p>
-          {variants.length === 0 ? (
+          {sorted.length === 0 ? (
             <p className="text-zinc-500 text-sm">No variants found.</p>
           ) : (
-            [...variants]
-              .sort((a, b) => b.case_count - a.case_count)
+            sorted
               .slice(0, 10)
-              .map((v) => (
-                <VariantCard key={v.variant_id} variant={v} />
+              .map((v, idx) => (
+                <VariantCard key={v.variant_id} variant={v} isHappyPath={idx === 0} happyPathSteps={happyPathSteps} />
               ))
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Tab: AI Analysis */}
       {activeTab === 'ai' && (
@@ -550,19 +553,52 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
 
 const COLLAPSED_MAX = 12;
 
-function VariantCard({ variant: v }: { variant: ProcessTabsProps['pipeline']['variants'][number] }) {
+function VariantCard({
+  variant: v,
+  isHappyPath = false,
+  happyPathSteps,
+}: {
+  variant: ProcessTabsProps['pipeline']['variants'][number];
+  isHappyPath?: boolean;
+  happyPathSteps: Set<string>;
+}) {
   const compressed = compressSequence(v.sequence);
   const isLong = compressed.length > COLLAPSED_MAX;
   const [expanded, setExpanded] = useState(!isLong);
   const visible = expanded ? compressed : compressed.slice(0, COLLAPSED_MAX);
   const hiddenCount = compressed.length - COLLAPSED_MAX;
 
+  const deviationCount = isHappyPath
+    ? 0
+    : v.sequence.filter((step) => !happyPathSteps.has(step)).length;
+
+  function stepClass(step: string): string {
+    if (isHappyPath || happyPathSteps.has(step)) {
+      return 'text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700';
+    }
+    return 'text-xs px-2 py-0.5 rounded-full bg-amber-900/30 text-amber-300 border border-amber-700';
+  }
+
+  function singleStepClass(step: string): string {
+    if (isHappyPath || happyPathSteps.has(step)) {
+      return 'text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700';
+    }
+    return 'text-xs px-2.5 py-1 rounded-full bg-amber-900/30 text-amber-300 border border-amber-700';
+  }
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 flex items-start gap-4">
       <div className="text-right min-w-[64px]">
-        <p className="text-sm font-semibold font-mono text-zinc-100">
-          {v.percentage.toFixed(1)}%
-        </p>
+        <div className="flex items-center justify-end gap-1.5">
+          <p className="text-sm font-semibold font-mono text-zinc-100">
+            {v.percentage.toFixed(1)}%
+          </p>
+          {isHappyPath && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-900/40 text-green-400 border border-green-800/50">
+              Happy Path
+            </span>
+          )}
+        </div>
         <p className="text-xs text-zinc-500 mt-0.5">
           {v.case_count} cases
         </p>
@@ -576,6 +612,11 @@ function VariantCard({ variant: v }: { variant: ProcessTabsProps['pipeline']['va
             {v.sequence.length} steps
           </p>
         )}
+        {deviationCount > 0 && (
+          <p className="text-xs text-amber-500 mt-0.5">
+            {deviationCount} deviation{deviationCount !== 1 ? 's' : ''}
+          </p>
+        )}
       </div>
       <div className="flex-1">
         <div className="flex gap-1.5 flex-wrap items-center">
@@ -585,7 +626,7 @@ function VariantCard({ variant: v }: { variant: ProcessTabsProps['pipeline']['va
                 <span className="flex items-center gap-0.5 border border-amber-800/50 rounded-full px-1 py-0.5 bg-amber-950/30">
                   {segment.steps.map((step, si) => (
                     <span key={si} className="flex items-center gap-0.5">
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                      <span className={stepClass(step)}>
                         {step}
                       </span>
                       {si < segment.steps.length - 1 && (
@@ -596,7 +637,7 @@ function VariantCard({ variant: v }: { variant: ProcessTabsProps['pipeline']['va
                   <span className="text-xs font-mono text-amber-400 ml-1">{'\u00d7'}{segment.count}</span>
                 </span>
               ) : (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                <span className={singleStepClass(segment.steps[0])}>
                   {segment.steps[0]}
                 </span>
               )}
