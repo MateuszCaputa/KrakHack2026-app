@@ -122,7 +122,7 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
     background-image:
       radial-gradient(rgba(129, 140, 248, 0.03) 1px, transparent 1px);
     background-size: 24px 24px;
@@ -181,4 +181,103 @@
   bottom: 60%;
   background: radial-gradient(ellipse at top left, rgba(129, 140, 248, 0.06) 0%, transparent 70%);
   pointer-events: none;
+}
+
+/* ========== ANIMATED BACKGROUNDS ========== */
+
+@keyframes mesh-drift-1 {
+  0%   { transform: translate(0%, 0%) scale(1); }
+  33%  { transform: translate(15%, -20%) scale(1.1); }
+  66%  { transform: translate(-10%, 15%) scale(0.95); }
+  100% { transform: translate(5%, -10%) scale(1.05); }
+}
+
+@keyframes mesh-drift-2 {
+  0%   { transform: translate(0%, 0%) scale(1); }
+  33%  { transform: translate(-20%, 10%) scale(1.15); }
+  66%  { transform: translate(10%, -15%) scale(0.9); }
+  100% { transform: translate(-5%, 20%) scale(1.05); }
+}
+
+@keyframes mesh-drift-3 {
+  0%   { transform: translate(0%, 0%) scale(1.05); }
+  33%  { transform: translate(10%, 20%) scale(0.95); }
+  66%  { transform: translate(-15%, -10%) scale(1.1); }
+  100% { transform: translate(20%, 5%) scale(1); }
+}
+
+@keyframes orb-float-1 {
+  0%, 100% { transform: translate(0%, 0%); }
+  50%      { transform: translate(5%, -8%); }
+}
+
+@keyframes orb-float-2 {
+  0%, 100% { transform: translate(0%, 0%); }
+  50%      { transform: translate(-7%, 5%); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.4), 0 0 60px rgba(99, 102, 241, 0.1); }
+  50%      { box-shadow: 0 0 35px rgba(99, 102, 241, 0.6), 0 0 80px rgba(139, 92, 246, 0.15); }
+}
+
+@keyframes gradient-x {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.mesh-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.text-gradient {
+  background: linear-gradient(
+    135deg,
+    #c7d2fe 0%,
+    #818cf8 25%,
+    #a78bfa 50%,
+    #818cf8 75%,
+    #e0e7ff 100%
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-x 8s ease infinite;
+}
+
+.btn-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.header-glass {
+  background: rgba(9, 9, 11, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mesh-blob,
+  .ambient-orb {
+    animation: none !important;
+  }
+  .text-gradient {
+    animation: none !important;
+  }
+  .btn-glow {
+    animation: none !important;
+  }
 }
