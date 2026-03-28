@@ -11,6 +11,7 @@ import { LiveMonitor } from './live-monitor';
 import { HealthScore } from './health-score';
 import { RoiCalculator } from './roi-calculator';
 import { AskProcess } from './ask-process';
+import { AutomationMatrix } from './automation-matrix';
 import type { PipelineOutput, CopilotOutput } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
@@ -561,6 +562,10 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
                     <p className="text-sm text-zinc-400 leading-relaxed">{copilot.summary}</p>
                   </div>
                 </CollapsibleSection>
+              )}
+
+              {copilot.recommendations?.length > 0 && (
+                <AutomationMatrix recommendations={copilot.recommendations} pipeline={pipeline} />
               )}
 
               {copilot.recommendations?.length > 0 && (
