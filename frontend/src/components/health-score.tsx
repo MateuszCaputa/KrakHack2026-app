@@ -6,17 +6,39 @@ interface HealthScoreProps {
 }
 
 function computeHealthScore(pipeline: PipelineOutput) {
-  const { statistics: stats, bottlenecks, activities } = pipeline;
+  const { bottlenecks, activities, variants } = pipeline;
 
-  const standardization = Math.max(0, 100 - stats.total_variants * 3);
+  // Standardization: share of cases following the dominant path.
+  // 67%+ on the top variant → 100; fully fragmented (all unique paths) → 0.
+  const topVariantPct = variants.length > 0 ? (variants[0].percentage ?? 0) : 0;
+  const standardization = Math.min(100, Math.max(0, Math.round(topVariantPct * 1.5)));
 
+  // Bottleneck health: severity distribution relative to total bottlenecks.
+  // Avoids punishing datasets that simply have more transitions.
+  const totalBn = bottlenecks.length;
   const criticalCount = bottlenecks.filter((b) => b.severity === 'critical').length;
   const highCount = bottlenecks.filter((b) => b.severity === 'high').length;
   const mediumCount = bottlenecks.filter((b) => b.severity === 'medium').length;
-  const bottleneckHealth = Math.max(0, 100 - criticalCount * 25 - highCount * 10 - mediumCount * 3);
+  const bottleneckHealth =
+    totalBn === 0
+      ? 100
+      : Math.max(
+          0,
+          Math.round(
+            100 -
+              (criticalCount / totalBn) * 80 -
+              (highCount / totalBn) * 40 -
+              (mediumCount / totalBn) * 15,
+          ),
+        );
 
-  const totalCopyPaste = activities.reduce((sum, a) => sum + a.copy_paste_count, 0);
-  const automationBurden = Math.max(0, 100 - (totalCopyPaste / Math.max(stats.total_events, 1)) * 300);
+  // Automation burden: fraction of activities with heavy copy-paste (>10 ops).
+  // Fully relative — dataset size doesn't matter.
+  const heavyCopyPasteCount = activities.filter((a) => a.copy_paste_count > 10).length;
+  const automationBurden =
+    activities.length === 0
+      ? 100
+      : Math.max(0, Math.round(100 - (heavyCopyPasteCount / activities.length) * 100));
 
   const overall = Math.round((standardization + bottleneckHealth + automationBurden) / 3);
 
@@ -44,7 +66,7 @@ export function HealthScore({ pipeline }: HealthScoreProps) {
         <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wide">
           Process Health
         </h3>
-        <InlineTooltip text="Composite score from three factors: process standardization (fewer variants = better), bottleneck severity (fewer critical/high = better), and automation burden (less copy-paste = better). Each factor scores 0-100, then averaged.">
+        <InlineTooltip text="Composite score from three factors: standardization (how many cases follow the dominant path), bottleneck severity distribution (fraction of critical/high vs total), and automation burden (fraction of activities with heavy copy-paste). Each scores 0–100, then averaged.">
           <span className="text-xs text-zinc-600 cursor-help">?</span>
         </InlineTooltip>
       </div>
@@ -65,7 +87,7 @@ export function HealthScore({ pipeline }: HealthScoreProps) {
 
       <div className="flex gap-6 text-xs">
         <div>
-          <InlineTooltip text="Process standardization score (0–100). Based on number of unique variants — fewer variants means employees follow consistent procedures. Score = max(0, 100 − variants × 3).">
+          <InlineTooltip text="Standardization (0–100). Measures how many cases follow the dominant process path. Top variant covers 67%+ of cases → 100. Fully fragmented (every case unique) → 0.">
             <span className="text-zinc-500 cursor-help">Standardization</span>
           </InlineTooltip>
           <span className={`ml-1.5 font-mono font-medium ${scoreTextColor(standardization)}`}>
@@ -73,7 +95,7 @@ export function HealthScore({ pipeline }: HealthScoreProps) {
           </span>
         </div>
         <div>
-          <InlineTooltip text="Bottleneck health score (0–100). Penalizes critical (−25), high (−10), and medium (−3) severity bottlenecks. Lower score = more waiting time in the process.">
+          <InlineTooltip text="Bottleneck health (0–100). Based on severity distribution relative to total bottleneck count — not absolute numbers. 100% critical transitions → ~20; all low severity → 100.">
             <span className="text-zinc-500 cursor-help">Bottlenecks</span>
           </InlineTooltip>
           <span className={`ml-1.5 font-mono font-medium ${scoreTextColor(bottleneckHealth)}`}>
@@ -81,7 +103,7 @@ export function HealthScore({ pipeline }: HealthScoreProps) {
           </span>
         </div>
         <div>
-          <InlineTooltip text="Automation burden score (0–100). Based on copy-paste operations relative to total events. High copy-paste ratio = heavy manual data transfer = lower score.">
+          <InlineTooltip text="Automation burden (0–100). Fraction of activities with more than 10 copy-paste operations. 0% heavy copy-paste → 100; all activities copy-paste-heavy → 0.">
             <span className="text-zinc-500 cursor-help">Automation</span>
           </InlineTooltip>
           <span className={`ml-1.5 font-mono font-medium ${scoreTextColor(automationBurden)}`}>
