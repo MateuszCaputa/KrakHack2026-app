@@ -9,6 +9,8 @@ export interface Filters {
   applications: string[];
   search: string;
   minDurationSeconds: number;
+  minWaitSeconds: number;
+  minVariantCases: number;
 }
 
 const INITIAL: Filters = {
@@ -17,6 +19,8 @@ const INITIAL: Filters = {
   applications: [],
   search: '',
   minDurationSeconds: 0,
+  minWaitSeconds: 0,
+  minVariantCases: 0,
 };
 
 export function useFilters(pipeline: PipelineOutput) {
@@ -38,7 +42,9 @@ export function useFilters(pipeline: PipelineOutput) {
     filters.severities.length > 0 ||
     filters.applications.length > 0 ||
     filters.search.length > 0 ||
-    filters.minDurationSeconds > 0;
+    filters.minDurationSeconds > 0 ||
+    filters.minWaitSeconds > 0 ||
+    filters.minVariantCases > 0;
 
   const filteredActivities = useMemo(() => {
     return pipeline.activities.filter((act) => {
@@ -65,7 +71,7 @@ export function useFilters(pipeline: PipelineOutput) {
   const filteredBottlenecks = useMemo(() => {
     return pipeline.bottlenecks.filter((bn) => {
       if (filters.severities.length > 0 && !filters.severities.includes(bn.severity)) return false;
-      // When user/app filters narrow activities, keep bottlenecks touching visible activities
+      if (filters.minWaitSeconds > 0 && bn.avg_wait_seconds < filters.minWaitSeconds) return false;
       if ((filters.users.length > 0 || filters.applications.length > 0) && filteredActivityNames.size > 0) {
         if (!filteredActivityNames.has(bn.from_activity) && !filteredActivityNames.has(bn.to_activity))
           return false;
@@ -80,15 +86,17 @@ export function useFilters(pipeline: PipelineOutput) {
     return pipeline.performer_stats.filter((p) => filters.users.includes(p.user));
   }, [pipeline.performer_stats, filters.users]);
 
-  // Variants filtered: keep variants whose steps overlap with filtered activities
   const filteredVariants = useMemo(() => {
-    if (!filters.users.length && !filters.applications.length && !filters.search) {
+    if (!filters.users.length && !filters.applications.length && !filters.search && filters.minVariantCases === 0) {
       return pipeline.variants;
     }
-    if (filteredActivityNames.size === 0) return pipeline.variants;
-    return pipeline.variants.filter((v) =>
-      v.sequence.some((step) => filteredActivityNames.has(step)),
-    );
+    return pipeline.variants.filter((v) => {
+      if (filters.minVariantCases > 0 && v.case_count < filters.minVariantCases) return false;
+      if (filteredActivityNames.size > 0 && (filters.users.length > 0 || filters.applications.length > 0)) {
+        if (!v.sequence.some((step) => filteredActivityNames.has(step))) return false;
+      }
+      return true;
+    });
   }, [pipeline.variants, filteredActivityNames, filters]);
 
   function toggleUser(user: string) {
@@ -124,6 +132,24 @@ export function useFilters(pipeline: PipelineOutput) {
     setFilters((f) => ({ ...f, minDurationSeconds }));
   }
 
+  function setMinWait(minWaitSeconds: number) {
+    setFilters((f) => ({ ...f, minWaitSeconds }));
+  }
+
+  function setMinVariantCases(minVariantCases: number) {
+    setFilters((f) => ({ ...f, minVariantCases }));
+  }
+
+  function clearTabFilters(tab: 'overview' | 'bottlenecks' | 'variants') {
+    if (tab === 'overview') {
+      setFilters((f) => ({ ...f, users: [], applications: [], search: '', minDurationSeconds: 0 }));
+    } else if (tab === 'bottlenecks') {
+      setFilters((f) => ({ ...f, severities: [], minWaitSeconds: 0, users: [] }));
+    } else if (tab === 'variants') {
+      setFilters((f) => ({ ...f, users: [], minVariantCases: 0 }));
+    }
+  }
+
   function clearFilters() {
     setFilters(INITIAL);
   }
@@ -142,6 +168,9 @@ export function useFilters(pipeline: PipelineOutput) {
     toggleApplication,
     setSearch,
     setMinDuration,
+    setMinWait,
+    setMinVariantCases,
+    clearTabFilters,
     clearFilters,
   };
 }

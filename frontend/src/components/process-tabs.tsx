@@ -13,9 +13,9 @@ import { RoiCalculator } from './roi-calculator';
 import { AskProcess } from './ask-process';
 import { AutomationMatrix } from './automation-matrix';
 import { BeforeAfter } from './before-after';
-import { FilterBar } from './filter-bar';
+import { OverviewFilterBar, BottleneckFilterBar, VariantFilterBar } from './filter-bar';
 import { useFilters } from '@/hooks/use-filters';
-import type { PipelineOutput, CopilotOutput } from '@/lib/types';
+import type { PipelineOutput, CopilotOutput, ImpactLevel, RecommendationType } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
 import { generateReport } from '@/lib/report';
@@ -91,6 +91,8 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
 
   const [showAllBottlenecks, setShowAllBottlenecks] = useState(false);
   const [showAllActivities, setShowAllActivities] = useState(false);
+  const [recImpact, setRecImpact] = useState<ImpactLevel[]>([]);
+  const [recType, setRecType] = useState<RecommendationType[]>([]);
 
   const {
     filters,
@@ -105,7 +107,10 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
     toggleSeverity,
     toggleApplication,
     setSearch,
-    clearFilters,
+    setMinDuration,
+    setMinWait,
+    setMinVariantCases,
+    clearTabFilters,
   } = useFilters(pipeline);
 
   const { statistics: stats, application_usage, copy_paste_flows } = pipeline;
@@ -206,21 +211,6 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
         />
       </div>
 
-      {/* Filter bar */}
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3">
-        <FilterBar
-          filters={filters}
-          isActive={filtersActive}
-          availableUsers={availableUsers}
-          availableApps={availableApps}
-          onToggleUser={toggleUser}
-          onToggleSeverity={toggleSeverity}
-          onToggleApplication={toggleApplication}
-          onSetSearch={setSearch}
-          onClear={clearFilters}
-        />
-      </div>
-
       {/* Tab navigation */}
       <div className="flex gap-1 border-b border-zinc-800 overflow-x-auto" role="tablist">
         {TABS.map((tab) => (
@@ -249,6 +239,16 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       {/* Tab: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6 tab-content" key="overview">
+          <OverviewFilterBar
+            filters={filters}
+            availableUsers={availableUsers}
+            availableApps={availableApps}
+            onToggleUser={toggleUser}
+            onToggleApplication={toggleApplication}
+            onSetSearch={setSearch}
+            onSetMinDuration={setMinDuration}
+            onClear={() => clearTabFilters('overview')}
+          />
           <HealthScore pipeline={pipeline} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <StatCard
@@ -517,6 +517,14 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
         const highCount = filteredBottlenecks.filter((b) => b.severity === 'high').length;
         return (
         <>
+        <BottleneckFilterBar
+          filters={filters}
+          availableUsers={availableUsers}
+          onToggleUser={toggleUser}
+          onToggleSeverity={toggleSeverity}
+          onSetMinWait={setMinWait}
+          onClear={() => clearTabFilters('bottlenecks')}
+        />
         <p className="text-sm text-zinc-400">
           <span className="text-red-400 font-medium">{criticalCount} critical</span>
           {', '}
@@ -603,6 +611,13 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
         const happyPathSteps = sorted.length > 0 ? new Set(sorted[0].sequence) : new Set<string>();
         return (
         <div className="space-y-3">
+          <VariantFilterBar
+            filters={filters}
+            availableUsers={availableUsers}
+            onToggleUser={toggleUser}
+            onSetMinVariantCases={setMinVariantCases}
+            onClear={() => clearTabFilters('variants')}
+          />
           <p className="text-xs text-zinc-500">
             Each variant is a unique path through the process. Higher percentage = more common path. Loops highlighted in amber indicate repetitive patterns. Steps not in the happy path are highlighted in orange.
           </p>
@@ -696,9 +711,70 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
                 <AutomationMatrix recommendations={copilot.recommendations} pipeline={pipeline} />
               )}
 
-              {copilot.recommendations?.length > 0 && (
-                <CollapsibleSection
-                  title={`Recommendations (${copilot.recommendations.length})`}
+              {copilot.recommendations?.length > 0 && (() => {
+                const IMPACTS: ImpactLevel[] = ['high', 'medium', 'low'];
+                const TYPES: RecommendationType[] = ['automate', 'eliminate', 'simplify', 'parallelize', 'reassign'];
+                const IMPACT_COLORS: Record<ImpactLevel, { idle: string; active: string }> = {
+                  high: { idle: 'border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:text-emerald-400 hover:border-emerald-700', active: 'border-emerald-500 bg-emerald-900/30 text-emerald-300' },
+                  medium: { idle: 'border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:text-blue-400 hover:border-blue-700', active: 'border-blue-500 bg-blue-900/30 text-blue-300' },
+                  low: { idle: 'border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:text-zinc-300 hover:border-zinc-500', active: 'border-zinc-400 bg-zinc-800 text-zinc-200' },
+                };
+                const TYPE_ICONS: Record<RecommendationType, string> = { automate: '⚡', eliminate: '✕', simplify: '◈', parallelize: '⇉', reassign: '→' };
+                const filtered = copilot.recommendations.filter((r) => {
+                  if (recImpact.length > 0 && !recImpact.includes(r.impact)) return false;
+                  if (recType.length > 0 && !recType.includes(r.type)) return false;
+                  return true;
+                });
+                const anyRecFilter = recImpact.length > 0 || recType.length > 0;
+                return (
+                <>
+                {/* Recommendation filters */}
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest select-none mr-1">Filter</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">Impact</span>
+                      <div className="flex gap-1">
+                        {IMPACTS.map((imp) => {
+                          const active = recImpact.includes(imp);
+                          const c = IMPACT_COLORS[imp];
+                          return (
+                            <button key={imp} onClick={() => setRecImpact((prev) => active ? prev.filter((x) => x !== imp) : [...prev, imp])} aria-pressed={active}
+                              className={`px-2.5 py-1 text-[11px] font-medium rounded-md border capitalize transition-all ${active ? c.active : c.idle}`}>
+                              {imp}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <span className="w-px h-4 bg-zinc-700 self-center" />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-zinc-500 font-medium uppercase tracking-wide">Type</span>
+                      <div className="flex gap-1 flex-wrap">
+                        {TYPES.map((t) => {
+                          const active = recType.includes(t);
+                          return (
+                            <button key={t} onClick={() => setRecType((prev) => active ? prev.filter((x) => x !== t) : [...prev, t])} aria-pressed={active}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md border capitalize transition-all ${
+                                active ? 'border-violet-500 bg-violet-900/30 text-violet-300' : 'border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
+                              }`}>
+                              <span className="text-[10px]">{TYPE_ICONS[t]}</span>{t}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {anyRecFilter && (
+                      <button onClick={() => { setRecImpact([]); setRecType([]); }}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 rounded-md border border-transparent hover:border-zinc-700 transition-all">
+                        <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 1.5L7.5 7.5M7.5 1.5L1.5 7.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+              <CollapsibleSection
+                  title={`Recommendations (${filtered.length}${anyRecFilter ? ` of ${copilot.recommendations.length}` : ''})`}
                   tooltip="Ranked automation opportunities — each recommendation targets a specific activity with a suggested action type (automate, eliminate, simplify, parallelize, or reassign)"
                   trailing={
                     copilot.blueprints && copilot.blueprints.length > 0 ? (
@@ -721,15 +797,21 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
                   }
                 >
                   <div className="p-4 space-y-3">
-                    {[...copilot.recommendations]
-                      .sort((a, b) => a.priority - b.priority)
-                      .map((rec) => {
-                        const bp = copilot.blueprints?.find((b) => b.target_activity === rec.target);
-                        return <RecommendationCard key={rec.id} recommendation={rec} blueprint={bp} />;
-                      })}
+                    {filtered.length === 0 ? (
+                      <p className="text-sm text-zinc-500 text-center py-4">No recommendations match current filters.</p>
+                    ) : (
+                      [...filtered]
+                        .sort((a, b) => a.priority - b.priority)
+                        .map((rec) => {
+                          const bp = copilot.blueprints?.find((b) => b.target_activity === rec.target);
+                          return <RecommendationCard key={rec.id} recommendation={rec} blueprint={bp} />;
+                        })
+                    )}
                   </div>
                 </CollapsibleSection>
-              )}
+                </>
+                );
+              })()}
 
               {copilot.recommendations?.length > 0 && (
                 <RoiCalculator recommendations={copilot.recommendations} pipeline={pipeline} />
