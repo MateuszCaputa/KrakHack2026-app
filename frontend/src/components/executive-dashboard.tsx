@@ -86,7 +86,9 @@ export function ExecutiveDashboard({ pipeline, copilot, onNavigate }: ExecutiveD
         .sort((a, b) => b.estimated_time_saved_seconds - a.estimated_time_saved_seconds)
         .slice(0, 3)
         .map(r => {
-          const hrs = (r.estimated_time_saved_seconds / 3600) * monthlyMultiplier * stats.total_cases;
+          // estimated_time_saved_seconds = total observed time saved across all cases in dataset
+          // scale to monthly only — no case multiplication to avoid inflation
+          const hrs = (r.estimated_time_saved_seconds / 3600) * monthlyMultiplier;
           return {
             tag: r.automation_type,
             tagColor: r.impact === 'high' ? '#22c55e' : r.impact === 'medium' ? '#f59e0b' : '#818cf8',
@@ -135,7 +137,8 @@ export function ExecutiveDashboard({ pipeline, copilot, onNavigate }: ExecutiveD
     // Win 2: highest copy-paste activity
     const topCopyPaste = [...activities].sort((a, b) => b.copy_paste_count - a.copy_paste_count)[0];
     if (topCopyPaste) {
-      const hrs = (topCopyPaste.copy_paste_count * 120 * topCopyPaste.frequency / 3600) * monthlyMultiplier;
+      // copy_paste_count = total observed operations across dataset; 8s per operation is conservative
+      const hrs = (topCopyPaste.copy_paste_count * 8 / 3600) * monthlyMultiplier;
       derived.push({
         tag: 'RPA',
         tagColor: '#f59e0b',
@@ -150,9 +153,10 @@ export function ExecutiveDashboard({ pipeline, copilot, onNavigate }: ExecutiveD
     // Win 3: most context-switch heavy
     const topCtx = [...activities]
       .filter(a => a.context_switch_count > 0)
-      .sort((a, b) => b.context_switch_count * b.frequency - a.context_switch_count * a.frequency)[0];
+      .sort((a, b) => b.context_switch_count - a.context_switch_count)[0];
     if (topCtx) {
-      const hrs = (topCtx.context_switch_count * 90 * topCtx.frequency / 3600) * monthlyMultiplier;
+      // context_switch_count = total observed switches; 30s re-focus cost per switch is conservative
+      const hrs = (topCtx.context_switch_count * 30 / 3600) * monthlyMultiplier;
       derived.push({
         tag: 'Eliminate',
         tagColor: '#818cf8',
