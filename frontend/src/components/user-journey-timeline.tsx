@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import type { PipelineOutput, Activity, Bottleneck } from '@/lib/types';
 import { formatDuration } from '@/lib/utils';
+import { normalizeActivityNameShort, formatUserId as fmtUid } from '@/lib/format-names';
 
 type BlockClass = 'core_work' | 'copy_paste' | 'coordination' | 'bottleneck';
 
@@ -47,11 +48,7 @@ function classifyActivity(activity: Activity): BlockClass {
   return 'core_work';
 }
 
-/** Shorten a UUID-style ID to something human-readable. */
-function formatUserId(id: string): string {
-  if (id.length > 16 && id.includes('-')) return id.slice(0, 8) + '…';
-  return id;
-}
+const formatUserId = fmtUid;
 
 const MAX_ACTIVITY_BLOCKS = 8; // keep timeline readable at all data sizes
 
@@ -108,7 +105,7 @@ function buildTimeline(user: string, pipeline: PipelineOutput): TimelineBlock[] 
     }
 
     raw.push({
-      label: act.name,
+      label: normalizeActivityNameShort(act.name),
       seconds: Math.max(act.avg_duration_seconds, 600),
       class: classifyActivity(act),
       activity: act,

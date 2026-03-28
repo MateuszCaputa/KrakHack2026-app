@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import type { PipelineOutput, CopilotOutput, Activity } from '@/lib/types';
 import { formatDuration } from '@/lib/utils';
+import { normalizeActivityName, formatBottleneckTransition } from '@/lib/format-names';
 
 const HOURLY_RATE = 50; // € per hour — conservative loaded cost
 const PASSIVE_APPS = new Set(['Teams', 'Outlook', 'New Outlook', 'Slack', 'Gmail', 'Zoom', 'Meet']);
@@ -106,8 +107,16 @@ export function ExecutiveDashboard({ pipeline, copilot }: ExecutiveDashboardProp
       derived.push({
         tag: 'Fix Bottleneck',
         tagColor: '#f43f5e',
-        title: `${worstBn.from_activity} → ${worstBn.to_activity}`,
-        why: `Average ${formatDuration(worstBn.avg_wait_seconds)} idle wait between these steps. Automating the handoff eliminates the delay entirely.`,
+        title: (() => {
+          const t = formatBottleneckTransition(worstBn.from_activity, worstBn.to_activity);
+          return t.isReworkLoop ? normalizeActivityName(worstBn.from_activity) : `${t.from} → ${t.to}`;
+        })(),
+        why: (() => {
+          const t = formatBottleneckTransition(worstBn.from_activity, worstBn.to_activity);
+          return t.isReworkLoop
+            ? `Employees repeatedly return to this step — ${formatDuration(worstBn.avg_wait_seconds)} avg delay each time. Indicates corrections or interruptions that automation can prevent.`
+            : `Average ${formatDuration(worstBn.avg_wait_seconds)} idle wait between these steps. Automating the handoff eliminates the delay entirely.`;
+        })(),
         eurPerMonth: Math.round(hrs * HOURLY_RATE),
         hoursPerMonth: Math.round(hrs),
       });
@@ -120,7 +129,7 @@ export function ExecutiveDashboard({ pipeline, copilot }: ExecutiveDashboardProp
       derived.push({
         tag: 'RPA',
         tagColor: '#f59e0b',
-        title: topCopyPaste.name,
+        title: normalizeActivityName(topCopyPaste.name),
         why: `${topCopyPaste.copy_paste_count} manual copy-paste operations per case across ${topCopyPaste.applications.slice(0, 2).join(' and ')}. Classic RPA target.`,
         eurPerMonth: Math.round(hrs * HOURLY_RATE),
         hoursPerMonth: Math.round(hrs),
@@ -136,7 +145,7 @@ export function ExecutiveDashboard({ pipeline, copilot }: ExecutiveDashboardProp
       derived.push({
         tag: 'Eliminate',
         tagColor: '#818cf8',
-        title: topCtx.name,
+        title: normalizeActivityName(topCtx.name),
         why: `${topCtx.context_switch_count} app switches per case. Every switch costs ~90 s of re-focus time. Consolidate to one tool.`,
         eurPerMonth: Math.round(hrs * HOURLY_RATE),
         hoursPerMonth: Math.round(hrs),
@@ -153,6 +162,10 @@ export function ExecutiveDashboard({ pipeline, copilot }: ExecutiveDashboardProp
     )[0],
     [bottlenecks]
   );
+
+  const bnFmt = worstBn
+    ? formatBottleneckTransition(worstBn.from_activity, worstBn.to_activity)
+    : null;
 
   const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
   const wastePct = timeBreakdown.copy_paste + timeBreakdown.waiting + timeBreakdown.coordination;
@@ -292,7 +305,7 @@ export function ExecutiveDashboard({ pipeline, copilot }: ExecutiveDashboardProp
         </div>
 
         {/* Worst bottleneck */}
-        {worstBn && (
+        {worstBn && bnFmt && (
           <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col gap-4">
             <p className="text-xs uppercase tracking-widest text-zinc-500 font-medium">
               Biggest single bottleneck
@@ -304,12 +317,26 @@ export function ExecutiveDashboard({ pipeline, copilot }: ExecutiveDashboardProp
               >
                 {worstBn.severity}
               </div>
+              {bnFmt.isReworkLoop && (
+                <span className="text-[10px] text-amber-400 bg-amber-950/40 border border-amber-900/40 px-2 py-0.5 rounded">
+                  ↩ Rework Loop
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-zinc-300 font-medium flex-wrap">
-              <span className="bg-zinc-800 px-2 py-1 rounded">{worstBn.from_activity}</span>
-              <span className="text-zinc-600">→</span>
-              <span className="bg-zinc-800 px-2 py-1 rounded">{worstBn.to_activity}</span>
-            </div>
+            {bnFmt.isReworkLoop ? (
+              <div className="text-sm text-zinc-300 font-medium">
+                <span className="bg-zinc-800 px-2 py-1 rounded">{bnFmt.from}</span>
+                <p className="text-xs text-zinc-500 mt-1.5">
+                  Employees return to this step repeatedly — indicates corrections or interruptions
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-zinc-300 font-medium flex-wrap">
+                <span className="bg-zinc-800 px-2 py-1 rounded">{bnFmt.from}</span>
+                <span className="text-zinc-600">→</span>
+                <span className="bg-zinc-800 px-2 py-1 rounded">{bnFmt.to}</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3 mt-auto">
               <div>
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Avg wait</p>
