@@ -40,7 +40,12 @@ def generate_bpmn(
     sequence = _extract_sequence(pipeline_output)
     color_map = _build_color_map(pipeline_output, recommendations or [])
     task_type_map = _build_task_type_map(pipeline_output, recommendations or [])
-    return _build_bpmn_xml(sequence, pipeline_output.process_id, color_map, task_type_map)
+    activity_metrics = _build_activity_metrics(pipeline_output)
+    gateway_points = _find_gateway_points(pipeline_output, sequence)
+    return _build_bpmn_xml(
+        sequence, pipeline_output.process_id, color_map, task_type_map,
+        activity_metrics, gateway_points,
+    )
 
 
 # --- Sequence extraction ---
@@ -161,6 +166,71 @@ def _build_task_type_map(
     return task_types
 
 
+def _build_activity_metrics(pipeline_output: PipelineOutput) -> dict[str, str]:
+    """Build per-activity metric annotations for BPMN task labels."""
+    metrics: dict[str, str] = {}
+    for act in pipeline_output.activities:
+        parts = []
+        if act.avg_duration_seconds > 0:
+            dur = act.avg_duration_seconds
+            if dur < 60:
+                parts.append(f"{dur:.0f}s avg")
+            elif dur < 3600:
+                parts.append(f"{dur / 60:.0f}m avg")
+            else:
+                parts.append(f"{dur / 3600:.1f}h avg")
+        parts.append(f"×{act.frequency}")
+        if act.copy_paste_count > 0:
+            parts.append(f"📋{act.copy_paste_count}")
+        metrics[act.name] = " · ".join(parts)
+    return metrics
+
+
+def _find_gateway_points(
+    pipeline_output: PipelineOutput, sequence: list[str],
+) -> list[tuple[int, list[str]]]:
+    """Find points in the sequence where top variants diverge.
+
+    Returns list of (index_after_which_to_insert_gateway, [branch_target_names]).
+    """
+    if len(pipeline_output.variants) < 2 or len(sequence) < 3:
+        return []
+
+    sorted_variants = sorted(pipeline_output.variants, key=lambda v: v.case_count, reverse=True)[:3]
+    top_seq = sorted_variants[0].sequence
+
+    gateways: list[tuple[int, list[str]]] = []
+    seq_set = set(sequence)
+
+    for i, step in enumerate(sequence[:-1]):
+        if step not in top_seq:
+            continue
+        idx_in_top = -1
+        for j, s in enumerate(top_seq):
+            if s == step:
+                idx_in_top = j
+                break
+        if idx_in_top < 0 or idx_in_top >= len(top_seq) - 1:
+            continue
+
+        next_in_top = top_seq[idx_in_top + 1]
+        branches: set[str] = set()
+        for var in sorted_variants[1:]:
+            if step not in var.sequence:
+                continue
+            var_idx = var.sequence.index(step)
+            if var_idx < len(var.sequence) - 1:
+                alt = var.sequence[var_idx + 1]
+                if alt != next_in_top and alt in seq_set:
+                    branches.add(alt)
+
+        if branches:
+            gateways.append((i, list(branches)[:2]))
+            break  # one gateway is enough for demo
+
+    return gateways
+
+
 # --- BPMN XML construction ---
 
 def _build_bpmn_xml(
@@ -168,6 +238,8 @@ def _build_bpmn_xml(
     process_id: str,
     color_map: dict[str, dict[str, str]],
     task_type_map: dict[str, str],
+    activity_metrics: dict[str, str] | None = None,
+    gateway_points: list[tuple[int, list[str]]] | None = None,
 ) -> str:
     """Build complete BPMN 2.0 XML with DI layout and bioc color annotations."""
     ET.register_namespace("bpmn", BPMN_NS)
@@ -179,13 +251,14 @@ def _build_bpmn_xml(
     definitions = ET.Element(f"{{{BPMN_NS}}}definitions")
     definitions.set("id", f"def_{process_id}")
     definitions.set("targetNamespace", "http://bpmn.io/schema/bpmn")
-    # bioc is used as a literal attribute prefix (not Clark notation), so declare it manually.
-    # bpmn/bpmndi/dc/di are registered via ET.register_namespace and added automatically.
     definitions.set("xmlns:bioc", BIOC_NS)
 
     process_elem = ET.SubElement(definitions, f"{{{BPMN_NS}}}process")
     process_elem.set("id", f"proc_{process_id}")
-    process_elem.set("isExecutable", "false")
+    process_elem.set("isExecutable", "true")
+
+    activity_metrics = activity_metrics or {}
+    gateway_points = gateway_points or []
 
     start_id = "ev_start"
     start_el = ET.SubElement(process_elem, f"{{{BPMN_NS}}}startEvent")
@@ -198,20 +271,50 @@ def _build_bpmn_xml(
         ttype = task_type_map.get(name, "userTask")
         task_el = ET.SubElement(process_elem, f"{{{BPMN_NS}}}{ttype}")
         task_el.set("id", tid)
-        task_el.set("name", name[:45])
+        label = name[:45]
+        metric = activity_metrics.get(name)
+        if metric:
+            label = f"{label}\n[{metric}]"
+        task_el.set("name", label)
         task_ids.append((tid, name))
+
+    # Add XOR gateways
+    gateway_ids: dict[int, str] = {}
+    for seq_idx, branches in gateway_points:
+        gw_id = f"gw_xor_{seq_idx}"
+        gw_el = ET.SubElement(process_elem, f"{{{BPMN_NS}}}exclusiveGateway")
+        gw_el.set("id", gw_id)
+        gw_el.set("name", "")
+        gateway_ids[seq_idx] = gw_id
 
     end_id = "ev_end"
     end_el = ET.SubElement(process_elem, f"{{{BPMN_NS}}}endEvent")
     end_el.set("id", end_id)
     end_el.set("name", "End")
 
+    # Build flow — insert gateways where divergence is found
     all_ids = [start_id] + [tid for tid, _ in task_ids] + [end_id]
-    for i in range(len(all_ids) - 1):
+
+    # Insert gateway IDs after their respective task indices
+    gw_insert_offsets: dict[int, str] = {}
+    for seq_idx, gw_id in gateway_ids.items():
+        # gateway goes after task at seq_idx (offset by 1 for start event)
+        insert_pos = seq_idx + 2  # +1 for start, +1 for after
+        gw_insert_offsets[insert_pos] = gw_id
+
+    expanded_ids: list[str] = []
+    for i, eid in enumerate(all_ids):
+        expanded_ids.append(eid)
+        if i in gw_insert_offsets:
+            expanded_ids.append(gw_insert_offsets[i])
+
+    flow_idx = 0
+    for i in range(len(expanded_ids) - 1):
+        flow_idx += 1
         sf = ET.SubElement(process_elem, f"{{{BPMN_NS}}}sequenceFlow")
-        sf.set("id", f"sf_{i + 1}")
-        sf.set("sourceRef", all_ids[i])
-        sf.set("targetRef", all_ids[i + 1])
+        sf.set("id", f"sf_{flow_idx}")
+        sf.set("sourceRef", expanded_ids[i])
+        sf.set("targetRef", expanded_ids[i + 1])
 
     # DI
     diagram = ET.SubElement(definitions, f"{{{BPMNDI_NS}}}BPMNDiagram")
@@ -222,6 +325,14 @@ def _build_bpmn_xml(
 
     positions = _compute_positions(task_ids, start_id, end_id)
 
+    # Add gateway positions (between task and next task)
+    gw_size = 42
+    for seq_idx, gw_id in gateway_ids.items():
+        task_id = task_ids[seq_idx][0]
+        tx, ty = positions[task_id]
+        # Place gateway to the right of the task, centered vertically
+        positions[gw_id] = (tx + TASK_WIDTH + TASK_H_GAP // 2 - gw_size // 2, ty + (TASK_HEIGHT - gw_size) // 2)
+
     # Shapes
     sx, sy = positions[start_id]
     _add_shape(plane, start_id, sx, sy, EVENT_SIZE, EVENT_SIZE, colors=COLOR_START)
@@ -230,19 +341,24 @@ def _build_bpmn_xml(
         tx, ty = positions[tid]
         _add_shape(plane, tid, tx, ty, TASK_WIDTH, TASK_HEIGHT, colors=color_map.get(name, COLOR_DEFAULT))
 
+    for gw_id in gateway_ids.values():
+        gx, gy = positions[gw_id]
+        _add_shape(plane, gw_id, gx, gy, gw_size, gw_size)
+
     ex, ey = positions[end_id]
     _add_shape(plane, end_id, ex, ey, EVENT_SIZE, EVENT_SIZE, colors=COLOR_END)
 
     # Edges
-    for i in range(len(all_ids) - 1):
-        src, tgt = all_ids[i], all_ids[i + 1]
-        is_first = i == 0
-        is_last = i == len(all_ids) - 2
-        sw = EVENT_SIZE if is_first else TASK_WIDTH
-        sh = EVENT_SIZE if is_first else TASK_HEIGHT
-        tw = EVENT_SIZE if is_last else TASK_WIDTH
-        th = EVENT_SIZE if is_last else TASK_HEIGHT
-        _add_edge(plane, f"sf_{i + 1}", src, tgt, positions[src], sw, sh, positions[tgt], tw, th)
+    all_positioned = expanded_ids
+    flow_idx_di = 0
+    for i in range(len(all_positioned) - 1):
+        flow_idx_di += 1
+        src, tgt = all_positioned[i], all_positioned[i + 1]
+        sw = _element_size(src, start_id, end_id, gateway_ids)[0]
+        sh = _element_size(src, start_id, end_id, gateway_ids)[1]
+        tw = _element_size(tgt, start_id, end_id, gateway_ids)[0]
+        th = _element_size(tgt, start_id, end_id, gateway_ids)[1]
+        _add_edge(plane, f"sf_{flow_idx_di}", src, tgt, positions[src], sw, sh, positions[tgt], tw, th)
 
     return _pretty_print(ET.tostring(definitions, encoding="unicode"))
 
@@ -279,6 +395,17 @@ def _compute_positions(
     positions[end_id] = (ex, ey + (TASK_HEIGHT - EVENT_SIZE) / 2)
 
     return positions
+
+
+def _element_size(
+    eid: str, start_id: str, end_id: str, gateway_ids: dict[int, str],
+) -> tuple[float, float]:
+    """Return (width, height) for any element type."""
+    if eid == start_id or eid == end_id:
+        return (EVENT_SIZE, EVENT_SIZE)
+    if eid in gateway_ids.values():
+        return (42, 42)
+    return (TASK_WIDTH, TASK_HEIGHT)
 
 
 # --- Shapes and edges ---

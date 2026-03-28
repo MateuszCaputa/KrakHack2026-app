@@ -29,7 +29,7 @@ type Variant = keyof typeof PALETTE;
 interface DiagramNode {
   id: string;
   label: string;
-  kind: 'start' | 'end' | 'task';
+  kind: 'start' | 'end' | 'task' | 'gateway';
   variant: Variant;
 }
 
@@ -100,12 +100,35 @@ function buildColorMap(
   return map;
 }
 
-function buildNodes(sequence: string[], colorMap: Map<string, Variant>): DiagramNode[] {
+function findGatewayPoint(pipeline: PipelineOutput, sequence: string[]): number {
+  if (pipeline.variants.length < 2 || sequence.length < 3) return -1;
+  const sorted = [...pipeline.variants].sort((a, b) => b.case_count - a.case_count);
+  const topSeq = sorted[0].sequence;
+  for (let i = 0; i < sequence.length - 1; i++) {
+    const step = sequence[i];
+    const idx = topSeq.indexOf(step);
+    if (idx < 0 || idx >= topSeq.length - 1) continue;
+    const nextInTop = topSeq[idx + 1];
+    for (const v of sorted.slice(1, 3)) {
+      const vi = v.sequence.indexOf(step);
+      if (vi >= 0 && vi < v.sequence.length - 1 && v.sequence[vi + 1] !== nextInTop) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+function buildNodes(sequence: string[], colorMap: Map<string, Variant>, pipeline: PipelineOutput): DiagramNode[] {
+  const gwIdx = findGatewayPoint(pipeline, sequence);
   const nodes: DiagramNode[] = [
     { id: '_start', label: 'Start', kind: 'start', variant: 'start' },
   ];
   for (let i = 0; i < sequence.length; i++) {
     nodes.push({ id: `t${i}`, label: sequence[i], kind: 'task', variant: colorMap.get(sequence[i]) ?? 'default' });
+    if (i === gwIdx) {
+      nodes.push({ id: `gw${i}`, label: 'XOR', kind: 'gateway', variant: 'default' });
+    }
   }
   nodes.push({ id: '_end', label: 'End', kind: 'end', variant: 'end' });
   return nodes;
@@ -113,10 +136,29 @@ function buildNodes(sequence: string[], colorMap: Map<string, Variant>): Diagram
 
 /* ─────────────────────────── layout ─────────────────────────────── */
 
+const GW = 44; // gateway diamond size
+
+function GatewayNode({ box }: { box: Box }) {
+  const cx = box.x + GW / 2;
+  const cy = box.y + GW / 2;
+  const r = GW / 2;
+  return (
+    <g>
+      <polygon
+        points={`${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`}
+        fill="#1c2333"
+        stroke="#f59e0b"
+        strokeWidth={2}
+      />
+      <text x={cx} y={cy + 5} textAnchor="middle" fill="#f59e0b" fontSize={14} fontWeight={800} fontFamily="system-ui,sans-serif">X</text>
+    </g>
+  );
+}
+
 function computeBoxes(nodes: DiagramNode[]): Map<string, Box> {
   const boxes = new Map<string, Box>();
-  const tasks = nodes.filter(n => n.kind === 'task');
-  const tc = tasks.length;
+  const layoutNodes = nodes.filter(n => n.kind === 'task' || n.kind === 'gateway');
+  const tc = layoutNodes.length;
 
   nodes.forEach(n => {
     if (n.kind === 'start') {
@@ -142,14 +184,22 @@ function computeBoxes(nodes: DiagramNode[]): Map<string, Box> {
 
   let ti = 0;
   for (const n of nodes) {
-    if (n.kind !== 'task') continue;
+    if (n.kind !== 'task' && n.kind !== 'gateway') continue;
     const row = Math.floor(ti / PR);
     const col = ti % PR;
-    boxes.set(n.id, {
-      x: PAD + ER * 2 + HG + col * (TW + HG),
-      y: PAD + row * (TH + VG),
-      w: TW, h: TH,
-    });
+    if (n.kind === 'gateway') {
+      boxes.set(n.id, {
+        x: PAD + ER * 2 + HG + col * (TW + HG) + TW / 2 - GW / 2,
+        y: PAD + row * (TH + VG) + TH / 2 - GW / 2,
+        w: GW, h: GW,
+      });
+    } else {
+      boxes.set(n.id, {
+        x: PAD + ER * 2 + HG + col * (TW + HG),
+        y: PAD + row * (TH + VG),
+        w: TW, h: TH,
+      });
+    }
     ti++;
   }
 
@@ -179,11 +229,11 @@ function edgePath(fb: Box, tb: Box): string {
 
 function trunc(s: string, n: number) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
-function TaskNode({ node, box }: { node: DiagramNode; box: Box }) {
+function TaskNode({ node, box, metrics }: { node: DiagramNode; box: Box; metrics?: string }) {
   const p = PALETTE[node.variant];
   const line1 = trunc(node.label, 22);
   const line2 = node.label.length > 22 ? trunc(node.label.slice(21), 22) : null;
-  const midY = line2 ? box.h / 2 - 7 : box.h / 2 + 5;
+  const midY = line2 ? box.h / 2 - 10 : box.h / 2 + 1;
 
   return (
     <g transform={`translate(${box.x},${box.y})`}>
@@ -199,6 +249,7 @@ function TaskNode({ node, box }: { node: DiagramNode; box: Box }) {
       )}
       <text x={TW / 2 + 3} y={midY} textAnchor="middle" fill={p.text} fontSize={11.5} fontWeight={600} fontFamily="system-ui,sans-serif">{line1}</text>
       {line2 && <text x={TW / 2 + 3} y={midY + 15} textAnchor="middle" fill={p.text} fontSize={11.5} fontWeight={600} fontFamily="system-ui,sans-serif" opacity={0.8}>{line2}</text>}
+      {metrics && <text x={TW / 2 + 3} y={TH - 8} textAnchor="middle" fill="#71717a" fontSize={8} fontFamily="system-ui,sans-serif">{metrics}</text>}
     </g>
   );
 }
@@ -226,6 +277,7 @@ const LEGEND = [
   { fill: PALETTE.bottleneck.fill,  stroke: PALETTE.bottleneck.stroke,  label: 'Bottleneck' },
   { fill: PALETTE.copypaste.fill,   stroke: PALETTE.copypaste.stroke,   label: 'Copy-Paste Intensive' },
   { fill: PALETTE.default.fill,     stroke: PALETTE.default.stroke,     label: 'Manual Step' },
+  { fill: '#1c2333',                stroke: '#f59e0b',                  label: 'XOR Gateway (Decision)' },
 ];
 
 function Legend() {
@@ -244,7 +296,7 @@ function Legend() {
 
 /* ─────────────────────────── diagram canvas ─────────────────────── */
 
-function DiagramCanvas({ nodes, boxes }: { nodes: DiagramNode[]; boxes: Map<string, Box> }) {
+function DiagramCanvas({ nodes, boxes, metricsMap }: { nodes: DiagramNode[]; boxes: Map<string, Box>; metricsMap: Map<string, string> }) {
   const { vw, vh } = useMemo(() => {
     let mx = 0, my = 0;
     for (const b of boxes.values()) { mx = Math.max(mx, b.x + b.w); my = Math.max(my, b.y + b.h + 44); }
@@ -322,7 +374,8 @@ function DiagramCanvas({ nodes, boxes }: { nodes: DiagramNode[]; boxes: Map<stri
           {nodes.map(n => {
             const b = boxes.get(n.id);
             if (!b) return null;
-            if (n.kind === 'task') return <TaskNode key={n.id} node={n} box={b} />;
+            if (n.kind === 'task') return <TaskNode key={n.id} node={n} box={b} metrics={metricsMap.get(n.label)} />;
+            if (n.kind === 'gateway') return <GatewayNode key={n.id} box={b} />;
             return <EventNode key={n.id} node={n} box={b} />;
           })}
         </svg>
@@ -338,13 +391,29 @@ export interface BpmnViewerProps {
   recommendations: Recommendation[] | null;
 }
 
+function formatMetricDur(sec: number): string {
+  if (sec < 60) return `${Math.round(sec)}s`;
+  if (sec < 3600) return `${Math.round(sec / 60)}m`;
+  return `${(sec / 3600).toFixed(1)}h`;
+}
+
 export function BpmnViewer({ pipeline, recommendations }: BpmnViewerProps) {
-  const { nodes, boxes } = useMemo(() => {
+  const { nodes, boxes, metricsMap } = useMemo(() => {
     const seq = extractSequence(pipeline);
     const colorMap = buildColorMap(seq, pipeline, recommendations);
-    const ns = buildNodes(seq, colorMap);
+    const ns = buildNodes(seq, colorMap, pipeline);
     const bs = computeBoxes(ns);
-    return { nodes: ns, boxes: bs };
+
+    const mm = new Map<string, string>();
+    for (const act of pipeline.activities) {
+      const parts: string[] = [];
+      if (act.avg_duration_seconds > 0) parts.push(formatMetricDur(act.avg_duration_seconds));
+      parts.push(`×${act.frequency}`);
+      if (act.copy_paste_count > 0) parts.push(`cp:${act.copy_paste_count}`);
+      mm.set(act.name, parts.join(' · '));
+    }
+
+    return { nodes: ns, boxes: bs, metricsMap: mm };
   }, [pipeline, recommendations]);
 
   return (
@@ -367,7 +436,7 @@ export function BpmnViewer({ pipeline, recommendations }: BpmnViewerProps) {
 
       {/* canvas */}
       <div className="h-[620px]">
-        <DiagramCanvas nodes={nodes} boxes={boxes} />
+        <DiagramCanvas nodes={nodes} boxes={boxes} metricsMap={metricsMap} />
       </div>
 
       <Legend />
