@@ -7,11 +7,12 @@ import { RecommendationCard } from './recommendation-card';
 import { BpmnViewer } from './bpmn-viewer';
 import { CollapsibleSection } from './collapsible-section';
 import { InlineTooltip } from './tooltip';
+import { LiveMonitor } from './live-monitor';
 import type { PipelineOutput, CopilotOutput } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
 
-type TabId = 'overview' | 'bottlenecks' | 'variants' | 'ai' | 'bpmn';
+type TabId = 'overview' | 'bottlenecks' | 'variants' | 'ai' | 'bpmn' | 'live';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -19,6 +20,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'variants', label: 'Variants' },
   { id: 'ai', label: 'AI Analysis' },
   { id: 'bpmn', label: 'BPMN' },
+  { id: 'live', label: 'Live Monitor' },
 ];
 
 interface CompressedSegment {
@@ -598,6 +600,11 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
           onLoadBpmn={handleLoadBpmn}
           onDownloadBpmn={handleDownloadBpmn}
         />
+      )}
+
+      {/* Tab: Live Monitor */}
+      {activeTab === 'live' && (
+        <LiveMonitor pipeline={pipeline} copilot={copilot} />
       )}
     </div>
   );
