@@ -1,21 +1,24 @@
 """Google Gemini LLM client with graceful no-key fallback."""
 
 import os
+import logging
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL = "gemini-2.5-flash-lite"
+GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
+logger = logging.getLogger(__name__)
 
 
 def call_llm(prompt: str, system: str = "", max_tokens: int = 1024) -> str:
     """Call Gemini API if key is set, return empty string otherwise."""
-    if not GEMINI_API_KEY:
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        logger.warning("GEMINI_API_KEY not set — skipping LLM call")
         return ""
 
     try:
         from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=GEMINI_API_KEY)
+        client = genai.Client(api_key=api_key)
         full_prompt = f"{system}\n\n{prompt}" if system else prompt
         response = client.models.generate_content(
             model=GEMINI_MODEL,
@@ -26,5 +29,6 @@ def call_llm(prompt: str, system: str = "", max_tokens: int = 1024) -> str:
             ),
         )
         return response.text or ""
-    except Exception:
+    except Exception as e:
+        logger.error("Gemini call failed: %s", e)
         return ""
