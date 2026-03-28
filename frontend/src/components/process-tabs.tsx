@@ -30,16 +30,15 @@ import { generateReport } from '@/lib/report';
 
 type TabId = 'dashboard' | 'overview' | 'impact' | 'bottlenecks' | 'variants' | 'ai' | 'bpmn' | 'live' | 'journey';
 
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'dashboard', label: '⚡ Dashboard' },
-  { id: 'journey', label: 'User Journey' },
-  { id: 'overview', label: 'Overview' },
-  { id: 'impact', label: 'Business Impact' },
-  { id: 'bottlenecks', label: 'Bottlenecks' },
-  { id: 'variants', label: 'Process Paths' },
-  { id: 'ai', label: 'AI Analysis' },
-  { id: 'bpmn', label: 'Workflow Diagram' },
-  { id: 'live', label: 'Live Monitor' },
+const TABS: { id: TabId; label: string; tooltip: string }[] = [
+  { id: 'dashboard', label: '⚡ Dashboard', tooltip: 'Executive summary — key KPIs, health score and top automation opportunities at a glance' },
+  { id: 'journey', label: 'User Journey', tooltip: 'Step-by-step timeline of how users move through the process — spot inefficiencies and rework loops' },
+  { id: 'overview', label: 'Overview', tooltip: 'Full activity list with frequency, duration and copy-paste counts — the raw data behind the process' },
+  { id: 'impact', label: 'Business Impact', tooltip: 'Automation potential ranked by impact — which steps save the most time and effort when automated' },
+  { id: 'bottlenecks', label: 'Bottlenecks', tooltip: 'Transitions with the highest waiting time — critical handoffs that slow down the entire process' },
+  { id: 'variants', label: 'Process Paths', tooltip: 'All unique paths through the process — more variants means less standardization and harder automation' },
+  { id: 'ai', label: 'AI Analysis', tooltip: 'AI-generated recommendations and BPMN model — ask questions about the process in natural language' },
+  { id: 'live', label: 'Live Monitor', tooltip: 'Real-time activity feed — watch the process as it happens and track active cases' },
 ];
 
 interface CompressedSegment {
@@ -225,25 +224,26 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       {/* Tab navigation */}
       <div className="flex gap-1 border-b border-zinc-800 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" role="tablist">
         {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => {
-              setActiveTab(tab.id);
-              if (tab.id === 'bpmn' && !bpmnXml) {
-                handleLoadBpmn();
-              }
-            }}
-            className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap border-b-2 -mb-px ${
-              activeTab === tab.id
-                ? 'border-indigo-400 text-indigo-300'
-                : 'border-transparent text-zinc-400 hover:text-zinc-200'
-            }`}
-            aria-label={`${tab.label} tab`}
-            aria-selected={activeTab === tab.id}
-            role="tab"
-          >
-            {tab.label}
-          </button>
+          <InlineTooltip key={tab.id} text={tab.tooltip}>
+            <button
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (tab.id === 'bpmn' && !bpmnXml) {
+                  handleLoadBpmn();
+                }
+              }}
+              className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap border-b-2 -mb-px ${
+                activeTab === tab.id
+                  ? 'border-indigo-400 text-indigo-300'
+                  : 'border-transparent text-zinc-400 hover:text-zinc-200'
+              }`}
+              aria-label={`${tab.label} tab`}
+              aria-selected={activeTab === tab.id}
+              role="tab"
+            >
+              {tab.label}
+            </button>
+          </InlineTooltip>
         ))}
       </div>
 

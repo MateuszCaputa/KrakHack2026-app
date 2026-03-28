@@ -257,7 +257,7 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
               {/* Savings */}
               <div className="border-t border-zinc-800 pt-3 flex items-end justify-between">
                 <div>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Save per month</p>
+                  <p className="text-xs text-zinc-400 uppercase tracking-wide">Save per month</p>
                   <p className="text-2xl font-black text-green-400">{formatEur(win.eurPerMonth)}</p>
                 </div>
                 <p className="text-xs text-zinc-500">{win.hoursPerMonth}h recovered</p>
@@ -284,7 +284,7 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
               />
               <div className="absolute inset-5 rounded-full bg-zinc-900 flex flex-col items-center justify-center">
                 <span className="text-xl font-black text-white">{wastePct}%</span>
-                <span className="text-[9px] text-zinc-500 uppercase tracking-wide">waste</span>
+                <span className="text-[11px] text-zinc-400 uppercase tracking-wide">waste</span>
               </div>
             </div>
             {/* Legend */}
@@ -313,13 +313,13 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
             </p>
             <div className="flex items-center gap-2 flex-wrap">
               <div
-                className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded"
+                className="shrink-0 text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded"
                 style={{ backgroundColor: '#f43f5e22', color: '#f43f5e' }}
               >
                 {worstBn.severity}
               </div>
               {bnFmt.isReworkLoop && (
-                <span className="text-[10px] text-amber-400 bg-amber-950/40 border border-amber-900/40 px-2 py-0.5 rounded font-semibold">
+                <span className="text-xs text-amber-400 bg-amber-950/40 border border-amber-900/40 px-2 py-0.5 rounded font-semibold">
                   ↩ Repeated task — not finishing in one go
                 </span>
               )}
@@ -333,15 +333,15 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Avg wait</p>
+                <p className="text-xs text-zinc-400 uppercase tracking-wide">Avg wait</p>
                 <p className="text-2xl font-black text-red-400">{formatDuration(worstBn.avg_wait_seconds)}</p>
               </div>
               <div>
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Cases affected</p>
+                <p className="text-xs text-zinc-400 uppercase tracking-wide">Cases affected</p>
                 <p className="text-2xl font-black text-zinc-200">{worstBn.case_count}</p>
               </div>
               <div className="col-span-2">
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Total labor lost</p>
+                <p className="text-xs text-zinc-400 uppercase tracking-wide">Total labor lost</p>
                 <p className="text-lg font-bold text-zinc-300">
                   {Math.round(worstBn.avg_wait_seconds * worstBn.case_count / 3600)}h
                   <span className="text-zinc-500 font-normal text-xs ml-1.5">
@@ -366,8 +366,8 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
         ].map(s => (
           <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
             <p className="text-2xl font-black text-zinc-100">{s.value}</p>
-            <p className="text-[10px] text-zinc-500 mt-0.5">{s.label}</p>
-            {s.note && <p className="text-[9px] text-zinc-600 mt-0.5">{s.note}</p>}
+            <p className="text-xs text-zinc-400 mt-0.5">{s.label}</p>
+            {s.note && <p className="text-[11px] text-zinc-500 mt-0.5">{s.note}</p>}
           </div>
         ))}
       </div>
