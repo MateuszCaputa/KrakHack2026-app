@@ -13,6 +13,8 @@ import { RoiCalculator } from './roi-calculator';
 import { AskProcess } from './ask-process';
 import { AutomationMatrix } from './automation-matrix';
 import { BeforeAfter } from './before-after';
+import { FilterBar } from './filter-bar';
+import { useFilters } from '@/hooks/use-filters';
 import type { PipelineOutput, CopilotOutput } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
@@ -90,12 +92,28 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
   const [showAllBottlenecks, setShowAllBottlenecks] = useState(false);
   const [showAllActivities, setShowAllActivities] = useState(false);
 
-  const { statistics: stats, activities, bottlenecks, variants, application_usage, copy_paste_flows } = pipeline;
+  const {
+    filters,
+    isActive: filtersActive,
+    availableUsers,
+    availableApps,
+    filteredActivities,
+    filteredBottlenecks,
+    filteredPerformers,
+    filteredVariants,
+    toggleUser,
+    toggleSeverity,
+    toggleApplication,
+    setSearch,
+    clearFilters,
+  } = useFilters(pipeline);
 
-  const sortedActivities = [...activities].sort((a, b) => b.frequency - a.frequency);
+  const { statistics: stats, application_usage, copy_paste_flows } = pipeline;
+
+  const sortedActivities = [...filteredActivities].sort((a, b) => b.frequency - a.frequency);
   const topActivities = showAllActivities ? sortedActivities : sortedActivities.slice(0, 15);
 
-  const sortedBottlenecks = [...bottlenecks].sort((a, b) => {
+  const sortedBottlenecks = [...filteredBottlenecks].sort((a, b) => {
     const sev = { critical: 4, high: 3, medium: 2, low: 1 };
     return (sev[b.severity as keyof typeof sev] ?? 0) - (sev[a.severity as keyof typeof sev] ?? 0);
   });
@@ -188,6 +206,21 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
         />
       </div>
 
+      {/* Filter bar */}
+      <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg px-4 py-3">
+        <FilterBar
+          filters={filters}
+          isActive={filtersActive}
+          availableUsers={availableUsers}
+          availableApps={availableApps}
+          onToggleUser={toggleUser}
+          onToggleSeverity={toggleSeverity}
+          onToggleApplication={toggleApplication}
+          onSetSearch={setSearch}
+          onClear={clearFilters}
+        />
+      </div>
+
       {/* Tab navigation */}
       <div className="flex gap-1 border-b border-zinc-800 overflow-x-auto" role="tablist">
         {TABS.map((tab) => (
@@ -252,7 +285,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
             />
             <StatCard
               label="Automation Candidates"
-              value={activities.filter((a) => a.copy_paste_count > 10).length}
+              value={filteredActivities.filter((a) => a.copy_paste_count > 10).length}
               sub="activities with >10 copy-paste ops"
               tooltip="Activities with heavy copy-paste operations (>10) that are strong candidates for RPA automation"
             />
@@ -329,12 +362,12 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
                 </tbody>
               </table>
             </div>
-            {activities.length > 15 && (
+            {filteredActivities.length > 15 && (
               <button
                 onClick={() => setShowAllActivities(!showAllActivities)}
                 className="w-full py-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors border-t border-zinc-800"
               >
-                {showAllActivities ? 'Show less' : `Show all ${activities.length} activities`}
+                {showAllActivities ? 'Show less' : `Show all ${filteredActivities.length} activities${filtersActive ? ' (filtered)' : ''}`}
               </button>
             )}
           </CollapsibleSection>
@@ -417,8 +450,8 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
           })()}
 
           {/* Performer Analysis */}
-          {pipeline.performer_stats && pipeline.performer_stats.length > 0 && (() => {
-            const performers = pipeline.performer_stats;
+          {filteredPerformers.length > 0 && (() => {
+            const performers = filteredPerformers;
             const maxEvents = Math.max(...performers.map((p) => p.total_events));
             const fastest = performers.reduce((a, b) => a.avg_activity_duration_seconds < b.avg_activity_duration_seconds ? a : b);
             const slowest = performers.reduce((a, b) => a.avg_activity_duration_seconds > b.avg_activity_duration_seconds ? a : b);
@@ -480,8 +513,8 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
 
       {/* Tab: Bottlenecks */}
       {activeTab === 'bottlenecks' && (() => {
-        const criticalCount = bottlenecks.filter((b) => b.severity === 'critical').length;
-        const highCount = bottlenecks.filter((b) => b.severity === 'high').length;
+        const criticalCount = filteredBottlenecks.filter((b) => b.severity === 'critical').length;
+        const highCount = filteredBottlenecks.filter((b) => b.severity === 'high').length;
         return (
         <>
         <p className="text-sm text-zinc-400">
@@ -489,18 +522,19 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
           {', '}
           <span className="text-orange-400 font-medium">{highCount} high</span>
           {' severity bottlenecks detected across '}
-          <span className="text-zinc-200 font-medium">{bottlenecks.length} transitions</span>
+          <span className="text-zinc-200 font-medium">{filteredBottlenecks.length} transitions</span>
+          {filtersActive && <span className="text-zinc-500 text-xs ml-1">(filtered)</span>}
         </p>
         <CollapsibleSection
           title="Bottleneck Transitions"
           tooltip="Transitions between activities where significant waiting time was detected. High avg wait = process friction; many cases = widespread impact."
           trailing={
-            <span className="text-xs text-zinc-500">{bottlenecks.length} total</span>
+            <span className="text-xs text-zinc-500">{filteredBottlenecks.length} total</span>
           }
         >
-          {bottlenecks.length === 0 ? (
+          {filteredBottlenecks.length === 0 ? (
             <div className="px-4 py-8 text-center text-zinc-500 text-sm">
-              No bottlenecks detected.
+              {filtersActive ? 'No bottlenecks match current filters.' : 'No bottlenecks detected.'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -550,12 +584,12 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               </table>
             </div>
           )}
-          {bottlenecks.length > 15 && (
+          {filteredBottlenecks.length > 15 && (
             <button
               onClick={() => setShowAllBottlenecks(!showAllBottlenecks)}
               className="w-full py-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
             >
-              {showAllBottlenecks ? 'Show less' : `Show all ${bottlenecks.length} bottlenecks`}
+              {showAllBottlenecks ? 'Show less' : `Show all ${filteredBottlenecks.length} bottlenecks`}
             </button>
           )}
         </CollapsibleSection>
@@ -565,15 +599,23 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
 
       {/* Tab: Variants */}
       {activeTab === 'variants' && (() => {
-        const sorted = [...variants].sort((a, b) => b.case_count - a.case_count);
+        const sorted = [...filteredVariants].sort((a, b) => b.case_count - a.case_count);
         const happyPathSteps = sorted.length > 0 ? new Set(sorted[0].sequence) : new Set<string>();
         return (
         <div className="space-y-3">
           <p className="text-xs text-zinc-500">
             Each variant is a unique path through the process. Higher percentage = more common path. Loops highlighted in amber indicate repetitive patterns. Steps not in the happy path are highlighted in orange.
           </p>
+          {filtersActive && (
+            <div className="flex items-center gap-2 text-xs text-blue-400 bg-blue-900/10 border border-blue-800/40 rounded-lg px-3 py-2">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/><path d="M6 5v4M6 3.5v.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+              {filters.users.length > 0
+                ? `Showing variants that include activities performed by selected user${filters.users.length > 1 ? 's' : ''}. Case counts reflect the full dataset.`
+                : 'Filters active — showing variants matching filtered activities.'}
+            </div>
+          )}
           {sorted.length === 0 ? (
-            <p className="text-zinc-500 text-sm">No variants found.</p>
+            <p className="text-zinc-500 text-sm">{filtersActive ? 'No variants match current filters.' : 'No variants found.'}</p>
           ) : (
             sorted
               .slice(0, 10)
