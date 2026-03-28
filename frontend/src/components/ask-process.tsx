@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { askProcess } from '@/lib/api';
 
 interface QAPair {
@@ -10,12 +10,28 @@ interface QAPair {
 
 interface AskProcessProps {
   processId: string;
+  initialQuestion?: string;
+  onPrefillConsumed?: () => void;
 }
 
-export function AskProcess({ processId }: AskProcessProps) {
+export function AskProcess({ processId, initialQuestion, onPrefillConsumed }: AskProcessProps) {
   const [question, setQuestion] = useState('');
   const [history, setHistory] = useState<QAPair[]>([]);
   const [loading, setLoading] = useState(false);
+  const submittedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!initialQuestion || submittedRef.current === initialQuestion) return;
+    submittedRef.current = initialQuestion;
+    onPrefillConsumed?.();
+    const q = initialQuestion.trim();
+    setLoading(true);
+    setQuestion('');
+    askProcess(processId, q)
+      .then(({ answer }) => setHistory(prev => [...prev.slice(-2), { question: q, answer }]))
+      .catch(() => setHistory(prev => [...prev.slice(-2), { question: q, answer: 'Failed to get answer. Make sure the backend is running.' }]))
+      .finally(() => setLoading(false));
+  }, [initialQuestion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAsk() {
     const q = question.trim();

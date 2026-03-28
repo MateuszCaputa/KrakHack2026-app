@@ -264,16 +264,20 @@ async def ask_process(process_id: str, body: AskRequest):
         context += f"Top 5 Recommendations:\n" + "\n".join(rec_lines) + "\n"
 
     system_prompt = (
-        "You are a process mining analyst. Answer questions about this process using ONLY "
-        "the data provided below. Be specific with numbers. Keep answers concise (2-4 sentences). "
-        "If the data doesn't contain enough information to answer, say so."
+        "You are a sharp process improvement consultant. "
+        "You have task mining data from a real company. Use the numbers to be specific, then give expert advice. "
+        "Reply with exactly 3 lines separated by a blank line. Each line max 30 words. No headers, no bullet points. "
+        "Line 1: What is literally happening — one concrete sentence describing the real-world situation. "
+        "Line 2: The single most likely cause. "
+        "Line 3: One specific, actionable fix they can start this week. "
+        "Write like a consultant talking to a manager over coffee. No technical jargon."
     )
 
     from backend.copilot.llm import call_llm
     answer = call_llm(
         prompt=f"PROCESS DATA:\n{context}\n\nQUESTION: {body.question}",
         system=system_prompt,
-        max_tokens=512,
+        max_tokens=1024,
     )
 
     if not answer:

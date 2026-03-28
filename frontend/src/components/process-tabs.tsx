@@ -96,6 +96,7 @@ interface ProcessTabsProps {
 
 export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const [aiPrefill, setAiPrefill] = useState<string | undefined>(undefined);
   const [copilot, setCopilot] = useState<CopilotOutput | null>(null);
   const [copilotError, setCopilotError] = useState<string | null>(null);
   const [bpmnXml, setBpmnXml] = useState<string | null>(null);
@@ -264,7 +265,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       {/* Tab: Dashboard */}
       {activeTab === 'dashboard' && (
         <div className="tab-content" key="dashboard">
-          <ExecutiveDashboard pipeline={pipeline} copilot={copilot} onNavigate={(tab) => setActiveTab(tab as TabId)} />
+          <ExecutiveDashboard pipeline={pipeline} copilot={copilot} onNavigate={(tab, prefill) => { setActiveTab(tab as TabId); if (prefill) setAiPrefill(prefill); }} />
         </div>
       )}
 
@@ -917,7 +918,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       {/* Tab: AI Analysis */}
       {activeTab === 'ai' && (
         <div className="space-y-6 tab-content" key="ai">
-          <AskProcess processId={processId} />
+          <AskProcess processId={processId} initialQuestion={aiPrefill} onPrefillConsumed={() => setAiPrefill(undefined)} />
 
           {!copilot && !isPending && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center space-y-4">

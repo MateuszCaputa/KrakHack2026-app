@@ -12,7 +12,7 @@ const PASSIVE_APPS = new Set(['Teams', 'Outlook', 'New Outlook', 'Slack', 'Gmail
 interface ExecutiveDashboardProps {
   pipeline: PipelineOutput;
   copilot?: CopilotOutput | null;
-  onNavigate?: (tab: string) => void;
+  onNavigate?: (tab: string, prefill?: string) => void;
 }
 
 interface Win {
@@ -20,6 +20,7 @@ interface Win {
   tagColor: string;
   title: string;
   why: string;
+  question: string;
   eurPerMonth: number;
   hoursPerMonth: number;
 }
@@ -91,6 +92,7 @@ export function ExecutiveDashboard({ pipeline, copilot, onNavigate }: ExecutiveD
             tagColor: r.impact === 'high' ? '#22c55e' : r.impact === 'medium' ? '#f59e0b' : '#818cf8',
             title: r.target.length > 60 ? r.target.slice(0, 57) + '…' : r.target,
             why: r.reasoning.split('.')[0] + '.',
+            question: `We have an automation opportunity: "${r.target}". ${r.reasoning} What specific steps should we take to implement this and what savings can we expect?`,
             eurPerMonth: Math.round(hrs * HOURLY_RATE),
             hoursPerMonth: Math.round(hrs),
           };
@@ -119,6 +121,12 @@ export function ExecutiveDashboard({ pipeline, copilot, onNavigate }: ExecutiveD
             ? `Employees repeatedly return to this step — ${formatDuration(worstBn.avg_wait_seconds)} avg delay each time. Indicates corrections or interruptions that automation can prevent.`
             : `Average ${formatDuration(worstBn.avg_wait_seconds)} idle wait between these steps. Automating the handoff eliminates the delay entirely.`;
         })(),
+        question: (() => {
+          const t = formatBottleneckTransition(worstBn.from_activity, worstBn.to_activity);
+          return t.isReworkLoop
+            ? `Employees keep returning to "${t.from}" instead of finishing it in one go — average delay ${formatDuration(worstBn.avg_wait_seconds)} per return, ${worstBn.case_count} cases affected. What is the most likely cause and what is the single most effective fix?`
+            : `There is an average ${formatDuration(worstBn.avg_wait_seconds)} idle wait between "${t.from}" and "${t.to}" across ${worstBn.case_count} cases. What is causing this gap and how can we eliminate it?`;
+        })(),
         eurPerMonth: Math.round(hrs * HOURLY_RATE),
         hoursPerMonth: Math.round(hrs),
       });
@@ -133,6 +141,7 @@ export function ExecutiveDashboard({ pipeline, copilot, onNavigate }: ExecutiveD
         tagColor: '#f59e0b',
         title: normalizeActivityName(topCopyPaste.name),
         why: `${topCopyPaste.copy_paste_count} manual copy-paste operations per case across ${topCopyPaste.applications.slice(0, 2).join(' and ')}. Classic RPA target.`,
+        question: `Employees perform ${topCopyPaste.copy_paste_count} manual copy-paste operations per case in "${normalizeActivityName(topCopyPaste.name)}" across ${topCopyPaste.applications.slice(0, 2).join(' and ')}. What RPA solution would eliminate this and how would we implement it?`,
         eurPerMonth: Math.round(hrs * HOURLY_RATE),
         hoursPerMonth: Math.round(hrs),
       });
@@ -149,6 +158,7 @@ export function ExecutiveDashboard({ pipeline, copilot, onNavigate }: ExecutiveD
         tagColor: '#818cf8',
         title: normalizeActivityName(topCtx.name),
         why: `${topCtx.context_switch_count} app switches per case. Every switch costs ~90 s of re-focus time. Consolidate to one tool.`,
+        question: `Employees switch between ${topCtx.context_switch_count} different applications per case while working on "${normalizeActivityName(topCtx.name)}". What is the best way to consolidate this and reduce the constant context switching?`,
         eurPerMonth: Math.round(hrs * HOURLY_RATE),
         hoursPerMonth: Math.round(hrs),
       });
@@ -247,7 +257,7 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
             <div
               key={i}
               className={`relative bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col gap-3 overflow-hidden${onNavigate ? ' cursor-pointer hover:ring-1 hover:ring-amber-500/20 transition-all' : ''}`}
-              onClick={onNavigate ? () => onNavigate('ai') : undefined}
+              onClick={onNavigate ? () => onNavigate('ai', win.question) : undefined}
             >
               {/* Rank */}
               <div className="absolute top-4 right-4 text-3xl font-black text-zinc-800 select-none leading-none">
