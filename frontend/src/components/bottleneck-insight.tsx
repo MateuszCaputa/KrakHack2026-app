@@ -99,7 +99,6 @@ const HANDOFF_SOLUTIONS = [
 ];
 
 export function BottleneckInsight({ bottleneck, showSummary = true, compact = false }: BottleneckInsightProps) {
-  const [expanded, setExpanded] = useState(false);
   const [aiText, setAiText] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -117,9 +116,6 @@ export function BottleneckInsight({ bottleneck, showSummary = true, compact = fa
       setAiLoading(false);
     }
   }
-  const causes = fmt.isReworkLoop ? REWORK_CAUSES : HANDOFF_CAUSES;
-  const solutions = fmt.isReworkLoop ? REWORK_SOLUTIONS : HANDOFF_SOLUTIONS;
-
   if (compact) {
     const { cause, fix } = getCompactInsight(fmt.isReworkLoop, bottleneck.severity);
     const description = fmt.isReworkLoop
@@ -205,47 +201,50 @@ export function BottleneckInsight({ bottleneck, showSummary = true, compact = fa
         )
       )}
 
-      {/* Toggle */}
-      <button
-        onClick={e => { e.stopPropagation(); setExpanded(v => !v); }}
-        className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
-      >
-        <svg
-          width="11" height="11" viewBox="0 0 12 12" fill="none"
-          className={`transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
+      {/* Toggle — clicking directly fires AI */}
+      {!aiText && (
+        <button
+          onClick={e => { e.stopPropagation(); handleAskAI(); }}
+          disabled={aiLoading}
+          className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium disabled:opacity-60"
         >
-          <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        {expanded ? 'Hide analysis' : 'Why does this happen? What can you do?'}
-      </button>
+          {aiLoading ? (
+            <>
+              <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+              </svg>
+              Asking AI…
+            </>
+          ) : (
+            <>
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <path d="M4 2l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Why does this happen? What can you do?
+            </>
+          )}
+        </button>
+      )}
 
-      {/* Expanded content */}
-      {expanded && (
-        <div className="space-y-4 border-t border-zinc-800 pt-3 mt-1">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-2">Likely causes</p>
-            <ul className="space-y-2">
-              {causes.map((item, i) => (
-                <li key={i} className="flex gap-2.5 text-xs text-zinc-400 leading-relaxed">
-                  <span className="shrink-0 text-sm leading-none">{item.icon}</span>
-                  <span>{item.text}</span>
-                </li>
-              ))}
-            </ul>
+      {aiError && <p className="text-red-400 text-[11px]">{aiError}</p>}
+
+      {aiText && (
+        <div className="space-y-2 border-t border-zinc-800 pt-3 mt-1">
+          <div className="space-y-2">
+            {aiText.split('\n\n').filter(Boolean).map((para, i) => (
+              <p key={i} className="text-xs text-zinc-300 leading-relaxed">{para}</p>
+            ))}
           </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-2">What you can do — starting tomorrow</p>
-            <ul className="space-y-2">
-              {solutions.map((item, i) => (
-                <li key={i} className="flex gap-2.5 text-xs text-zinc-400 leading-relaxed">
-                  <span className="shrink-0 text-sm leading-none">{item.icon}</span>
-                  <span>{item.text}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <button
+            onClick={e => { e.stopPropagation(); setAiText(null); }}
+            className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"
+          >
+            Hide
+          </button>
         </div>
       )}
+
     </div>
   );
 }
