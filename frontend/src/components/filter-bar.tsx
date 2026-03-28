@@ -43,7 +43,7 @@ function SeverityToggle({
     <button
       onClick={onToggle}
       aria-pressed={active}
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-md border capitalize transition-all ${
+      className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg border capitalize transition-all ${
         active ? s.active : s.idle
       }`}
     >
@@ -77,7 +77,7 @@ function PresetChips({
               key={p.value}
               onClick={() => onChange(active ? 0 : p.value)}
               aria-pressed={active}
-              className={`px-2 py-0.5 text-[11px] font-medium rounded border transition-all ${
+              className={`px-2.5 py-1.5 text-[11px] font-medium rounded-lg border transition-all ${
                 active
                   ? 'border-blue-500 bg-blue-900/40 text-blue-300'
                   : 'border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
@@ -121,7 +121,7 @@ function UserDropdown({
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all ${
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg border transition-all ${
           count > 0
             ? 'border-blue-500 bg-blue-900/30 text-blue-300'
             : 'border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
@@ -209,7 +209,7 @@ function AppDropdown({
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-md border transition-all ${
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg border transition-all ${
           count > 0
             ? 'border-blue-500 bg-blue-900/30 text-blue-300'
             : 'border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
@@ -302,7 +302,7 @@ function ActiveUserPills({
       {selected.map((u) => (
         <span
           key={u}
-          className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 text-[11px] bg-blue-900/30 border border-blue-700/60 text-blue-300 rounded-full"
+          className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 text-[11px] bg-blue-900/30 border border-blue-700/60 text-blue-300 rounded-full"
         >
           {labels[u] ?? u.slice(0, 8) + '…'}
           <button
@@ -358,8 +358,8 @@ interface BaseProps {
 
 function FilterShell({ isActive, count, children, onClear }: { isActive: boolean; count: number; children: React.ReactNode; onClear: () => void }) {
   return (
-    <div className={`rounded-xl border px-4 py-2.5 transition-colors ${isActive ? 'border-zinc-700 bg-zinc-900/80' : 'border-zinc-800 bg-zinc-900/40'}`}>
-      <div className="flex flex-wrap items-center gap-2">
+    <div className={`rounded-xl border px-4 py-3 transition-colors ${isActive ? 'border-zinc-700 bg-zinc-900/80' : 'border-zinc-800 bg-zinc-900/40'}`}>
+      <div className="flex flex-wrap items-center gap-2.5">
         <span className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest select-none mr-1">
           Filter
         </span>
