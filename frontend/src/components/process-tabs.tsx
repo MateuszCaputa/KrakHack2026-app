@@ -23,6 +23,7 @@ import { DataFlowInsight } from './data-flow-insight';
 import { ActionCard } from './action-card';
 import { UserJourneyTimeline } from './user-journey-timeline';
 import { ExecutiveDashboard } from './executive-dashboard';
+import { BusinessIdInsight } from './business-id-insight';
 import type { PipelineOutput, CopilotOutput, ImpactLevel, RecommendationType } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
@@ -322,6 +323,9 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
           {copy_paste_flows && copy_paste_flows.length > 0 && (
             <DataFlowInsight activities={pipeline.activities} copyPasteFlows={copy_paste_flows} />
           )}
+
+          {/* Business ID visibility gap */}
+          <BusinessIdInsight pipeline={pipeline} />
 
           {/* Top activities table */}
           <CollapsibleSection

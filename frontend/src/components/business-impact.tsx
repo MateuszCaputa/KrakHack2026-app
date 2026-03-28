@@ -451,10 +451,12 @@ function PerUserTable({
   users,
   selectedId,
   onSelect,
+  renderDrillDown,
 }: {
   users: UserWaste[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  renderDrillDown?: (user: UserWaste) => React.ReactNode;
 }) {
   const maxWaste = Math.max(...users.map((u) => u.totalPerDay), 1);
   const sorted = [...users].sort((a, b) => b.totalPerDay - a.totalPerDay);
@@ -506,10 +508,16 @@ function PerUserTable({
                   </td>
                 </tr>
               );
+              // Drilldown is rendered outside the table below
             })}
           </tbody>
         </table>
       </div>
+      {/* Render drilldown inline right after the table, tied to selected user */}
+      {selectedId && renderDrillDown && (() => {
+        const selectedUser = sorted.find((u) => u.userId === selectedId);
+        return selectedUser ? renderDrillDown(selectedUser) : null;
+      })()}
     </div>
   );
 }
@@ -674,11 +682,10 @@ export function BusinessImpact({ pipeline, wages, onWagesChange }: BusinessImpac
           users={waste.perUser}
           selectedId={selectedUser}
           onSelect={toggleUser}
+          renderDrillDown={(user) => (
+            <UserDrillDown user={user} pipeline={pipeline} wages={wages} />
+          )}
         />
-      )}
-
-      {selectedWaste && (
-        <UserDrillDown user={selectedWaste} pipeline={pipeline} wages={wages} />
       )}
 
       <p className="text-[10px] text-zinc-500 px-1">
