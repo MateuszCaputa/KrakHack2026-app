@@ -15,6 +15,7 @@ import { AutomationMatrix } from './automation-matrix';
 import type { PipelineOutput, CopilotOutput } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
+import { generateReport } from '@/lib/report';
 
 type TabId = 'overview' | 'bottlenecks' | 'variants' | 'ai' | 'bpmn' | 'live';
 
@@ -139,9 +140,29 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
     URL.revokeObjectURL(url);
   }
 
+  function handleExportReport() {
+    const html = generateReport(pipeline, copilot);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
   return (
     <div className="space-y-6">
       {/* Stats row */}
+      <div className="flex justify-end -mb-4">
+        <button
+          onClick={handleExportReport}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg border border-zinc-700 transition-colors"
+          aria-label="Export analysis report as HTML"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M6 1v7M3 6l3 3 3-3M1 10h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Export Report
+        </button>
+      </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           label="Cases"
