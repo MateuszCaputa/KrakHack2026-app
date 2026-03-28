@@ -15,6 +15,7 @@ import { AutomationMatrix } from './automation-matrix';
 import { BeforeAfter } from './before-after';
 import { OverviewFilterBar, BottleneckFilterBar, VariantFilterBar } from './filter-bar';
 import { useFilters } from '@/hooks/use-filters';
+import { CostOfInaction } from './cost-of-inaction';
 import { CategoryBreakdown, HubInsight } from './category-breakdown';
 import { DataFlowInsight } from './data-flow-insight';
 import { ActionCard } from './action-card';
@@ -251,6 +252,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
             onSetMinDuration={setMinDuration}
             onClear={() => clearTabFilters('overview')}
           />
+          <CostOfInaction pipeline={pipeline} />
           <HealthScore pipeline={pipeline} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <StatCard
