@@ -56,7 +56,7 @@ export function CategoryBreakdown({ activities }: CategoryBreakdownProps) {
             <div key={cat.name} className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-300 font-medium">{cat.name}</span>
-                <span className="text-zinc-500 font-mono">
+                <span className="text-zinc-400 font-mono">
                   {cat.events.toLocaleString()} events {'\u00b7'} {formatDuration(cat.duration)} {'\u00b7'} {cat.copyPaste.toLocaleString()} copy-paste
                 </span>
               </div>
@@ -67,7 +67,7 @@ export function CategoryBreakdown({ activities }: CategoryBreakdownProps) {
                     style={{ width: `${barPct}%` }}
                   />
                 </div>
-                <span className="text-xs text-zinc-500 font-mono w-10 text-right">{pct.toFixed(0)}%</span>
+                <span className="text-xs text-zinc-300 font-mono w-10 text-right">{pct.toFixed(0)}%</span>
               </div>
             </div>
           );
@@ -125,8 +125,8 @@ export function HubInsight({ copyPasteFlows }: HubInsightProps) {
             Communication Hub Detected: {hub.app}
           </h3>
         </div>
-        <p className="text-xs text-zinc-400 mt-1">
-          {hub.app} receives manual copy-paste data from {hub.sources} different applications — a centralized bottleneck for manual data transfer.
+        <p className="text-xs text-zinc-300 mt-1">
+          {hub.app} receives manual data from <span className="text-amber-300 font-semibold">{hub.sources} different apps</span> — a centralized bottleneck for manual data transfer.
         </p>
       </div>
       <div className="p-4 space-y-2">
@@ -139,8 +139,8 @@ export function HubInsight({ copyPasteFlows }: HubInsightProps) {
           </div>
         ))}
         <div className="pt-2 mt-2 border-t border-zinc-800">
-          <p className="text-xs text-zinc-400">
-            <span className="text-amber-400 font-semibold">{hub.total.toLocaleString()}</span> total manual transfers into {hub.app}.
+          <p className="text-xs text-zinc-300">
+            <span className="text-amber-300 font-bold">{hub.total.toLocaleString()}</span> total manual transfers into {hub.app}.
             An automated reporting integration could eliminate these entirely.
           </p>
         </div>

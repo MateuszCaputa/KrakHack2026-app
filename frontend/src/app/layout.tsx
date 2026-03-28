@@ -46,7 +46,7 @@ export default function RootLayout({
         <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8 relative z-10">
           {children}
         </main>
-        <footer className="py-4 text-center text-[11px] text-zinc-600 relative z-10">
+        <footer className="py-4 text-center text-[11px] text-zinc-500 relative z-10">
           Process-to-Automation Copilot — KrakHack 2026 | Powered by pm4py + Gemini
         </footer>
       </body>

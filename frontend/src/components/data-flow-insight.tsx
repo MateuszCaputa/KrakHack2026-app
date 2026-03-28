@@ -101,7 +101,7 @@ export function DataFlowInsight({ activities, copyPasteFlows }: DataFlowInsightP
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
       <div className="px-4 py-3 border-b border-zinc-800">
         <h3 className="text-sm font-medium text-zinc-200">Cross-Department Data Flows</h3>
-        <p className="text-xs text-zinc-500 mt-0.5">
+        <p className="text-xs text-zinc-400 mt-0.5">
           Manual data transfers between work categories — reveals the hidden integration layer
         </p>
       </div>
@@ -117,7 +117,7 @@ export function DataFlowInsight({ activities, copyPasteFlows }: DataFlowInsightP
                   <span className="text-zinc-600 mx-1">{'\u2192'}</span>
                   <span className="text-zinc-400">{flow.to}</span>
                 </span>
-                <span className="text-zinc-500 font-mono">{flow.count.toLocaleString()}</span>
+                <span className="text-zinc-300 font-mono">{flow.count.toLocaleString()}</span>
               </div>
               <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                 <div
@@ -129,8 +129,8 @@ export function DataFlowInsight({ activities, copyPasteFlows }: DataFlowInsightP
           );
         })}
       </div>
-      <div className="px-4 py-3 border-t border-zinc-800 bg-zinc-900/50">
-        <p className="text-xs text-zinc-400">
+      <div className="px-4 py-3 border-t border-zinc-800/50">
+        <p className="text-xs text-zinc-300">
           <span className="text-amber-400 font-semibold">{flows.sinkCat}</span> receives{' '}
           <span className="text-zinc-200 font-medium">{flows.ratio}x</span> more data than it sends
           {' \u2014 '}

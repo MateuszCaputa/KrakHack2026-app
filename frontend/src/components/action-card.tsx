@@ -121,12 +121,12 @@ export function ActionCard({ pipeline, copilot }: ActionCardProps) {
               </span>
               <span className="text-sm font-medium text-zinc-200">{action.title}</span>
             </div>
-            <p className="text-xs text-zinc-400">{action.metric}</p>
+            <p className="text-xs text-zinc-300">{action.metric}</p>
             <div className="flex gap-4 mt-1.5 text-xs">
-              <span className="text-zinc-500">Saves: <span className="text-zinc-300">{action.savings}</span></span>
-              <span className="text-zinc-500">Effort: <span className="text-zinc-300">{action.effort}</span></span>
+              <span className="text-zinc-400">Saves: <span className="text-zinc-200">{action.savings}</span></span>
+              <span className="text-zinc-400">Effort: <span className="text-zinc-200">{action.effort}</span></span>
             </div>
-            <p className="text-xs text-zinc-500 mt-1">
+            <p className="text-xs text-zinc-400 mt-1">
               {'\u2192'} {action.nextStep}
             </p>
           </div>

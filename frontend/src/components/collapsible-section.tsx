@@ -39,7 +39,7 @@ export function CollapsibleSection({
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-          <h3 className="text-sm font-medium text-zinc-200">{title}</h3>
+          <h3 className="text-sm font-semibold text-zinc-100">{title}</h3>
           {tooltip && <Tooltip text={tooltip} />}
         </div>
         {trailing && (

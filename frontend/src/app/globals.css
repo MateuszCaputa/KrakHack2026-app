@@ -143,13 +143,15 @@
 
 /* Premium card styling */
 .card-premium {
-  background: linear-gradient(135deg, rgba(63, 63, 70, 0.15) 0%, rgba(24, 24, 27, 0.8) 100%);
-  border-color: rgba(63, 63, 70, 0.4);
+  background: linear-gradient(135deg, rgba(63, 63, 70, 0.12) 0%, rgba(24, 24, 27, 0.55) 100%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgba(82, 82, 91, 0.35);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .card-premium:hover {
-  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.08), 0 4px 20px rgba(0, 0, 0, 0.4);
-  border-color: rgba(63, 63, 70, 0.6);
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.1), 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-color: rgba(82, 82, 91, 0.5);
 }
 
 /* Accent gradient */
