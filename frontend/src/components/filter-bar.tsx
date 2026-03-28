@@ -47,7 +47,7 @@ function SeverityToggle({
         active ? s.active : s.idle
       }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${active ? s.dot : 'bg-zinc-600'}`} />
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-opacity ${s.dot} ${active ? 'opacity-100' : 'opacity-30'}`} />
       {sev}
     </button>
   );
@@ -302,16 +302,16 @@ function ActiveUserPills({
       {selected.map((u) => (
         <span
           key={u}
-          className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 text-[11px] bg-blue-900/30 border border-blue-700/60 text-blue-300 rounded-full"
+          className="inline-flex items-center gap-2 px-3 py-1 text-[11px] font-medium bg-blue-900/30 border border-blue-700/60 text-blue-300 rounded-full"
         >
           {labels[u] ?? u.slice(0, 8) + '…'}
           <button
             onClick={() => onToggle(u)}
-            className="w-3.5 h-3.5 flex items-center justify-center rounded-full hover:bg-blue-600 transition-colors"
+            className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded-full bg-blue-800/60 hover:bg-blue-600 transition-colors"
             aria-label={`Remove ${labels[u] ?? u}`}
           >
-            <svg width="6" height="6" viewBox="0 0 6 6" fill="none">
-              <path d="M1 1L5 5M5 1L1 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
+              <path d="M1.5 1.5L5.5 5.5M5.5 1.5L1.5 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
           </button>
         </span>
