@@ -152,10 +152,11 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
   return (
     <div className="space-y-6">
       {/* Stats row */}
-      <div className="flex justify-end -mb-4">
+      <div className="flex items-center justify-between">
+        <div />
         <button
           onClick={handleExportReport}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg border border-zinc-700 transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium rounded-lg border border-zinc-700 transition-colors z-10"
           aria-label="Export analysis report as HTML"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">

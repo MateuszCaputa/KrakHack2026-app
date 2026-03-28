@@ -22,9 +22,12 @@ export function CollapsibleSection({
 
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-      <button
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen(!open)}
-        className="w-full px-4 py-3 border-b border-zinc-800 flex items-center justify-between hover:bg-zinc-800/30 transition-colors"
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setOpen(!open); }}
+        className="w-full px-4 py-3 border-b border-zinc-800 flex items-center justify-between hover:bg-zinc-800/30 transition-colors cursor-pointer"
       >
         <div className="flex items-center gap-2">
           <svg
@@ -44,7 +47,7 @@ export function CollapsibleSection({
             {trailing}
           </div>
         )}
-      </button>
+      </div>
       {open && children}
     </div>
   );
