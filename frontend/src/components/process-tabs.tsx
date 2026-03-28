@@ -124,9 +124,6 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
   });
   const visibleBottlenecks = showAllBottlenecks ? sortedBottlenecks : sortedBottlenecks.slice(0, 15);
 
-  const maxUsage = Math.max(
-    ...(application_usage?.map((a) => a.total_duration_seconds) ?? [1])
-  );
 
   async function handleRunAnalysis() {
     setCopilotError(null);
@@ -373,18 +370,33 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
           </CollapsibleSection>
 
           {/* Application usage bar chart */}
-          {application_usage && application_usage.length > 0 && (
+          {application_usage && application_usage.length > 0 && (() => {
+            const userFiltered = filters.users.length > 0 || filters.applications.length > 0;
+            const appsInFilteredActivities = userFiltered
+              ? new Set(filteredActivities.flatMap((a) => a.applications))
+              : null;
+            const visibleApps = appsInFilteredActivities
+              ? application_usage.filter((a) => appsInFilteredActivities.has(a.application))
+              : application_usage;
+            const filteredMax = Math.max(...visibleApps.map((a) => a.total_duration_seconds), 1);
+            return (
             <CollapsibleSection
               title="Application Usage"
-              tooltip="Total time spent in each application across all users. Active % shows how much of that time involved actual user interaction vs. idle/background time."
+              tooltip={userFiltered
+                ? "Apps used by selected user(s) — bars show relative usage among these apps. Duration figures are dataset-wide totals (per-user breakdown not available at this level)."
+                : "Total time spent in each application across all users. Active % shows how much of that time involved actual user interaction vs. idle/background time."}
             >
+              {userFiltered && (
+                <div className="mx-4 mt-3 flex items-center gap-1.5 text-[11px] text-blue-400 bg-blue-900/10 border border-blue-800/30 rounded-lg px-3 py-1.5">
+                  <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1.1"/><path d="M5.5 4.5v3M5.5 3.5v.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>
+                  Showing apps used by selected user{filters.users.length > 1 ? 's' : ''} — durations reflect full dataset
+                </div>
+              )}
               <div className="p-4 space-y-3">
-                {[...application_usage]
+                {[...visibleApps]
                   .sort((a, b) => b.total_duration_seconds - a.total_duration_seconds)
                   .map((app) => {
-                    const pct = maxUsage > 0
-                      ? (app.total_duration_seconds / maxUsage) * 100
-                      : 0;
+                    const pct = filteredMax > 0 ? (app.total_duration_seconds / filteredMax) * 100 : 0;
                     const activePct = app.total_duration_seconds > 0
                       ? (app.active_duration_seconds / app.total_duration_seconds) * 100
                       : 0;
@@ -397,20 +409,19 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
                           </span>
                         </div>
                         <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-600 rounded-full"
-                            style={{ width: `${pct}%` }}
-                          />
+                          <div className="h-full bg-blue-600 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
-                        <div className="text-xs text-zinc-600">
-                          {activePct.toFixed(0)}% active
-                        </div>
+                        <div className="text-xs text-zinc-600">{activePct.toFixed(0)}% active</div>
                       </div>
                     );
                   })}
+                {visibleApps.length === 0 && (
+                  <p className="text-xs text-zinc-500 text-center py-2">No application data for selected filters.</p>
+                )}
               </div>
             </CollapsibleSection>
-          )}
+            );
+          })()}
 
           {/* Cross-App Data Transfers */}
           {copy_paste_flows && copy_paste_flows.length > 0 && (() => {
