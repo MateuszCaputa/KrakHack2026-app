@@ -21,7 +21,7 @@ export function CollapsibleSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+    <div className="card-premium border rounded-xl overflow-hidden">
       <div
         role="button"
         tabIndex={0}

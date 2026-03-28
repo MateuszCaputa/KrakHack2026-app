@@ -226,7 +226,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
             }}
             className={`px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap border-b-2 -mb-px ${
               activeTab === tab.id
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-indigo-400 text-indigo-300'
                 : 'border-transparent text-zinc-400 hover:text-zinc-200'
             }`}
             aria-label={`${tab.label} tab`}
@@ -706,7 +706,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               )}
               <button
                 onClick={handleRunAnalysis}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 accent-gradient hover:opacity-90 text-white text-sm font-medium rounded-lg transition-colors"
               >
                 Run AI Analysis
               </button>

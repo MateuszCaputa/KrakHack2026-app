@@ -61,7 +61,7 @@ export function HealthScore({ pipeline }: HealthScoreProps) {
   const { overall, standardization, bottleneckHealth, automationBurden } = computeHealthScore(pipeline);
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+    <div className="card-premium border rounded-xl p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-zinc-400 uppercase tracking-wide">
           Process Health
@@ -72,7 +72,7 @@ export function HealthScore({ pipeline }: HealthScoreProps) {
       </div>
 
       <div className="flex items-end gap-4 mb-4">
-        <span className={`text-4xl font-bold tabular-nums ${scoreTextColor(overall)}`}>
+        <span className={`text-4xl font-bold tabular-nums score-glow ${scoreTextColor(overall)}`}>
           {overall}
         </span>
         <span className="text-lg text-zinc-600 mb-1">/ 100</span>
@@ -80,7 +80,7 @@ export function HealthScore({ pipeline }: HealthScoreProps) {
 
       <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden mb-4">
         <div
-          className={`h-full rounded-full transition-all duration-500 ${scoreColor(overall)}`}
+          className={`h-full rounded-full transition-all duration-500 ${overall > 70 ? 'bar-accent' : scoreColor(overall)}`}
           style={{ width: `${overall}%` }}
         />
       </div>

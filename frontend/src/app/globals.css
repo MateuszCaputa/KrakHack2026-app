@@ -123,6 +123,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(rgba(129, 140, 248, 0.03) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
   html {
     @apply font-sans;
@@ -135,5 +138,47 @@
 }
 
 .tab-content {
-  animation: tab-fade-in 300ms ease-out;
+  animation: tab-fade-in 250ms ease-out;
+}
+
+/* Premium card styling */
+.card-premium {
+  background: linear-gradient(135deg, rgba(63, 63, 70, 0.15) 0%, rgba(24, 24, 27, 0.8) 100%);
+  border-color: rgba(63, 63, 70, 0.4);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card-premium:hover {
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.08), 0 4px 20px rgba(0, 0, 0, 0.4);
+  border-color: rgba(63, 63, 70, 0.6);
+}
+
+/* Accent gradient */
+.accent-gradient {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+/* Health score glow */
+.score-glow {
+  text-shadow: 0 0 30px currentColor, 0 0 60px currentColor;
+}
+
+/* Accent bar gradient */
+.bar-accent {
+  background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+/* Subtle stat card shine */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+.card-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 60%;
+  bottom: 60%;
+  background: radial-gradient(ellipse at top left, rgba(129, 140, 248, 0.06) 0%, transparent 70%);
+  pointer-events: none;
 }
