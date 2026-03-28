@@ -386,7 +386,18 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       )}
 
       {/* Tab: Bottlenecks */}
-      {activeTab === 'bottlenecks' && (
+      {activeTab === 'bottlenecks' && (() => {
+        const criticalCount = bottlenecks.filter((b) => b.severity === 'critical').length;
+        const highCount = bottlenecks.filter((b) => b.severity === 'high').length;
+        return (
+        <>
+        <p className="text-sm text-zinc-400">
+          <span className="text-red-400 font-medium">{criticalCount} critical</span>
+          {', '}
+          <span className="text-orange-400 font-medium">{highCount} high</span>
+          {' severity bottlenecks detected across '}
+          <span className="text-zinc-200 font-medium">{bottlenecks.length} transitions</span>
+        </p>
         <CollapsibleSection
           title="Bottleneck Transitions"
           tooltip="Transitions between activities where significant waiting time was detected. High avg wait = process friction; many cases = widespread impact."
@@ -455,7 +466,9 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
             </button>
           )}
         </CollapsibleSection>
-      )}
+        </>
+        );
+      })()}
 
       {/* Tab: Variants */}
       {activeTab === 'variants' && (() => {
