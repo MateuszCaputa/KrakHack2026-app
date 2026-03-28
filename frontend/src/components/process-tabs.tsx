@@ -410,6 +410,66 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               </CollapsibleSection>
             );
           })()}
+
+          {/* Performer Analysis */}
+          {pipeline.performer_stats && pipeline.performer_stats.length > 0 && (() => {
+            const performers = pipeline.performer_stats;
+            const maxEvents = Math.max(...performers.map((p) => p.total_events));
+            const fastest = performers.reduce((a, b) => a.avg_activity_duration_seconds < b.avg_activity_duration_seconds ? a : b);
+            const slowest = performers.reduce((a, b) => a.avg_activity_duration_seconds > b.avg_activity_duration_seconds ? a : b);
+            return (
+              <CollapsibleSection
+                title="Performer Analysis"
+                tooltip="Per-user performance metrics — identify training opportunities by comparing efficiency across team members"
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-zinc-800">
+                        <th className="text-left px-4 py-2 text-xs text-zinc-500 font-medium">User</th>
+                        <th className="text-right px-4 py-2 text-xs text-zinc-500 font-medium">Events</th>
+                        <th className="text-right px-4 py-2 text-xs text-zinc-500 font-medium">Avg Duration</th>
+                        <th className="text-right px-4 py-2 text-xs text-zinc-500 font-medium">Activities</th>
+                        <th className="text-left px-4 py-2 text-xs text-zinc-500 font-medium">Top Apps</th>
+                        <th className="px-4 py-2 text-xs text-zinc-500 font-medium">Workload</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {performers.map((p) => {
+                        const isFastest = p.user === fastest.user && performers.length > 1;
+                        const isSlowest = p.user === slowest.user && performers.length > 1;
+                        const barPct = maxEvents > 0 ? (p.total_events / maxEvents) * 100 : 0;
+                        return (
+                          <tr key={p.user} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                            <td className={`px-4 py-2 ${isFastest ? 'text-green-400' : isSlowest ? 'text-amber-400' : 'text-zinc-200'}`}>
+                              {p.user}
+                              {isFastest && <span className="ml-1 text-[10px] text-green-500">fastest</span>}
+                              {isSlowest && <span className="ml-1 text-[10px] text-amber-500">slowest</span>}
+                            </td>
+                            <td className="px-4 py-2 text-right font-mono text-zinc-400">{p.total_events.toLocaleString()}</td>
+                            <td className="px-4 py-2 text-right font-mono text-zinc-400">{formatDuration(p.avg_activity_duration_seconds)}</td>
+                            <td className="px-4 py-2 text-right font-mono text-zinc-400">{p.activity_count}</td>
+                            <td className="px-4 py-2">
+                              <div className="flex gap-1 flex-wrap">
+                                {p.top_applications.map((app) => (
+                                  <span key={app} className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">{app}</span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 w-24">
+                              <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${barPct}%` }} />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CollapsibleSection>
+            );
+          })()}
         </div>
       )}
 

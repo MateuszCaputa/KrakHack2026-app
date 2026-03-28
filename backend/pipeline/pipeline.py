@@ -4,7 +4,7 @@ import uuid
 
 import pandas as pd
 
-from backend.models import PipelineOutput, ProcessStatistics, ApplicationUsage, CopyPasteFlow
+from backend.models import PipelineOutput, ProcessStatistics, ApplicationUsage, CopyPasteFlow, PerformerStats
 from backend.pipeline.ingest import ingest, load_activity_sequence_csvs, prepare_dataframe, load_activity_heatmap_csvs
 from backend.pipeline.discovery import discover_activities, discover_process_map
 from backend.pipeline.variants import discover_variants
@@ -48,6 +48,8 @@ def run_pipeline(
     application_usage = _compute_application_usage(df)
     copy_paste_flows = _load_copy_paste_flows(dataset_directory)
 
+    performer_stats = _compute_performer_stats(df)
+
     return PipelineOutput(
         process_id=process_id,
         activities=activities,
@@ -57,6 +59,7 @@ def run_pipeline(
         statistics=statistics,
         application_usage=application_usage,
         copy_paste_flows=copy_paste_flows,
+        performer_stats=performer_stats,
     )
 
 
@@ -97,6 +100,34 @@ def _compute_statistics(df: pd.DataFrame, variants: list) -> ProcessStatistics:
         start_date=str(df[TIMESTAMP_COL].min().isoformat()),
         end_date=str(df[TIMESTAMP_COL].max().isoformat()),
     )
+
+
+def _compute_performer_stats(df: pd.DataFrame) -> list[PerformerStats]:
+    """Compute per-user performance metrics."""
+    if RESOURCE_COL not in df.columns or DURATION_COL not in df.columns:
+        return []
+
+    grouped = df.groupby(RESOURCE_COL)
+    result = []
+    for user, group in grouped:
+        user_str = str(user).strip()
+        if not user_str:
+            continue
+        total_dur = float(group[DURATION_COL].sum()) / 1000.0
+        avg_dur = float(group[DURATION_COL].mean()) / 1000.0
+        top_apps: list[str] = []
+        if APP_COL in group.columns:
+            top_apps = group[APP_COL].value_counts().head(3).index.tolist()
+        activity_count = group[ACTIVITY_COL].nunique() if ACTIVITY_COL in group.columns else 0
+        result.append(PerformerStats(
+            user=user_str,
+            total_events=len(group),
+            total_duration_seconds=total_dur,
+            avg_activity_duration_seconds=avg_dur,
+            top_applications=top_apps,
+            activity_count=int(activity_count),
+        ))
+    return sorted(result, key=lambda p: p.total_events, reverse=True)
 
 
 def _compute_application_usage(df: pd.DataFrame) -> list[ApplicationUsage]:

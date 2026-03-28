@@ -106,6 +106,16 @@ class CopyPasteFlow(BaseModel):
     count: int
 
 
+class PerformerStats(BaseModel):
+    """Per-user aggregated performance metrics."""
+    user: str
+    total_events: int
+    total_duration_seconds: float
+    avg_activity_duration_seconds: float
+    top_applications: list[str] = []
+    activity_count: int = 0
+
+
 class PipelineOutput(BaseModel):
     process_id: str
     activities: list[Activity]
@@ -115,6 +125,7 @@ class PipelineOutput(BaseModel):
     statistics: ProcessStatistics
     application_usage: list[ApplicationUsage] = []
     copy_paste_flows: list[CopyPasteFlow] = []
+    performer_stats: list[PerformerStats] = []
 
 
 # --- Copilot Output Models ---

@@ -93,6 +93,15 @@ export interface CopyPasteFlow {
   count: number;
 }
 
+export interface PerformerStats {
+  user: string;
+  total_events: number;
+  total_duration_seconds: number;
+  avg_activity_duration_seconds: number;
+  top_applications: string[];
+  activity_count: number;
+}
+
 export interface PipelineOutput {
   process_id: string;
   statistics: PipelineStatistics;
@@ -102,6 +111,7 @@ export interface PipelineOutput {
   process_map: ProcessMap;
   application_usage: ApplicationUsage[];
   copy_paste_flows: CopyPasteFlow[];
+  performer_stats?: PerformerStats[];
 }
 
 export type RecommendationType =
