@@ -1,24 +1,23 @@
-# Final Sprint PRDs — KrakHack 2026
+# PRDs — KrakHack 2026 Process Copilot
 
-Demo: 2026-03-28 17:30 | ~10h work remaining
+Demo: 2026-03-28 17:30
 
-## Execution Order
+## Overnight Agent Execution Order
 
-| # | PRD | Est | Owner | Priority | Status |
-|---|-----|-----|-------|----------|--------|
-| 1 | [PRD-1: Quick Fixes](PRD-1-quick-fixes.md) | 20m | Mateusz | P0 | pending |
-| 2 | [PRD-2: Context Switches](PRD-2-context-switches.md) | 30m | Mateusz | P0 | pending |
-| 3 | [PRD-3: Activity Heatmap](PRD-3-activity-heatmap.md) | 25m | Mateusz | P1 | pending |
-| 4 | [PRD-5: BPMN Improvements](PRD-5-bpmn-requirements.md) | 45m | Kacper | P1 | pending |
-| 5 | [PRD-4: Variant Deviation](PRD-4-variant-deviation.md) | 20m | Mateusz | P1 | pending |
-| 6 | [PRD-6: Live Alerts](PRD-6-live-alerts.md) | 45m | Mateusz | P2 | pending |
+| # | PRD | Est | Priority | Status |
+|---|-----|-----|----------|--------|
+| 1 | [PRD-10: Fix Overnight Issues](PRD-10-overnight-fixes.md) | 15m | P0 | pending |
+| 2 | [PRD-5: BPMN Improvements](PRD-5-bpmn-requirements.md) | 45m | P1 | pending |
+| 3 | [PRD-9: Process Health Score](PRD-9-health-score.md) | 20m | P1 | pending |
+| 4 | [PRD-7: ROI Calculator](PRD-7-roi-calculator.md) | 30m | P0 | pending |
+| 5 | [PRD-8: Export Report](PRD-8-export-report.md) | 30m | P1 | pending |
 
-**Total Mateusz: ~2.5h | Kacper: ~45m**
+## Already Completed
 
-## Sources
-
-Based on cross-reference of:
-- Task PDF evaluation criteria
-- Mentor (Maciej Krzywda) feedback
-- Two independent Claude audits of codebase vs. requirements
-- Other Claude's Polish-language gap analysis
+| # | PRD | Status |
+|---|-----|--------|
+| 1 | [PRD-1: Quick Fixes](PRD-1-quick-fixes.md) | done |
+| 2 | [PRD-2: Context Switches](PRD-2-context-switches.md) | done (needs fix) |
+| 3 | [PRD-3: Activity Heatmap](PRD-3-activity-heatmap.md) | done |
+| 4 | [PRD-4: Variant Deviation](PRD-4-variant-deviation.md) | done (needs fix) |
+| 5 | [PRD-6: Live Alerts](PRD-6-live-alerts.md) | done (needs fix) |
