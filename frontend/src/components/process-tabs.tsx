@@ -15,6 +15,9 @@ import { AutomationMatrix } from './automation-matrix';
 import { BeforeAfter } from './before-after';
 import { OverviewFilterBar, BottleneckFilterBar, VariantFilterBar } from './filter-bar';
 import { useFilters } from '@/hooks/use-filters';
+import { CategoryBreakdown, HubInsight } from './category-breakdown';
+import { DataFlowInsight } from './data-flow-insight';
+import { ActionCard } from './action-card';
 import type { PipelineOutput, CopilotOutput, ImpactLevel, RecommendationType } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
@@ -25,9 +28,9 @@ type TabId = 'overview' | 'bottlenecks' | 'variants' | 'ai' | 'bpmn' | 'live';
 const TABS: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'bottlenecks', label: 'Bottlenecks' },
-  { id: 'variants', label: 'Variants' },
+  { id: 'variants', label: 'Process Paths' },
   { id: 'ai', label: 'AI Analysis' },
-  { id: 'bpmn', label: 'BPMN' },
+  { id: 'bpmn', label: 'Workflow Diagram' },
   { id: 'live', label: 'Live Monitor' },
 ];
 
@@ -269,7 +272,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               tooltip="Number of distinct employees and software applications observed in the event log"
             />
             <StatCard
-              label="Top Bottleneck"
+              label="Biggest Delay"
               value={
                 sortedBottlenecks.length > 0
                   ? `${sortedBottlenecks[0].severity} · ${formatDuration(sortedBottlenecks[0].avg_wait_seconds)}`
@@ -283,12 +286,25 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               tooltip="Highest-severity bottleneck transition — the biggest source of delay in the process"
             />
             <StatCard
-              label="Automation Candidates"
+              label="RPA-Ready Activities"
               value={filteredActivities.filter((a) => a.copy_paste_count > 10).length}
               sub="activities with >10 copy-paste ops"
               tooltip="Activities with heavy copy-paste operations (>10) that are strong candidates for RPA automation"
             />
           </div>
+
+          {/* Activity categories */}
+          <CategoryBreakdown activities={filteredActivities} />
+
+          {/* Communication hub insight */}
+          {copy_paste_flows && copy_paste_flows.length > 0 && (
+            <HubInsight copyPasteFlows={copy_paste_flows} />
+          )}
+
+          {/* Cross-department data flows */}
+          {copy_paste_flows && copy_paste_flows.length > 0 && (
+            <DataFlowInsight activities={pipeline.activities} copyPasteFlows={copy_paste_flows} />
+          )}
 
           {/* Top activities table */}
           <CollapsibleSection
@@ -310,7 +326,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
                       <InlineTooltip text="Manual data transfers between apps — high counts are prime RPA automation targets">Copy-Paste</InlineTooltip>
                     </th>
                     <th className="text-right px-4 py-2 text-xs text-zinc-500 font-medium">
-                      <InlineTooltip text="App switches within this step — frequent switching = fragmented cross-system work that automation can eliminate">Ctx Switches</InlineTooltip>
+                      <InlineTooltip text="App switches within this step — frequent switching = fragmented cross-system work that automation can eliminate">App Switches</InlineTooltip>
                     </th>
                     <th className="text-left px-4 py-2 text-xs text-zinc-500 font-medium">
                       <InlineTooltip text="Apps used — multi-app steps often involve manual data transfer between systems">Applications</InlineTooltip>
@@ -726,6 +742,9 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
 
           {copilot && (
             <>
+              {/* Executive action card */}
+              <ActionCard pipeline={pipeline} copilot={copilot} />
+
               {copilot.summary && (
                 <CollapsibleSection
                   title="Summary"

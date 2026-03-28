@@ -41,6 +41,7 @@ export interface Activity {
   copy_paste_count: number;
   manual_interaction_count: number;
   context_switch_count: number;
+  category: string | null;
 }
 
 export interface Variant {

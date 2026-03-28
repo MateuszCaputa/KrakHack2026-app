@@ -87,24 +87,24 @@ export function HealthScore({ pipeline }: HealthScoreProps) {
 
       <div className="flex gap-6 text-xs">
         <div>
-          <InlineTooltip text="Standardization (0–100). Measures how many cases follow the dominant process path. Top variant covers 67%+ of cases → 100. Fully fragmented (every case unique) → 0.">
-            <span className="text-zinc-500 cursor-help">Standardization</span>
+          <InlineTooltip text="How many cases follow the dominant process path. High = consistent process, low = fragmented.">
+            <span className="text-zinc-500 cursor-help">Consistency</span>
           </InlineTooltip>
           <span className={`ml-1.5 font-mono font-medium ${scoreTextColor(standardization)}`}>
             {Math.round(standardization)}
           </span>
         </div>
         <div>
-          <InlineTooltip text="Bottleneck health (0–100). Based on severity distribution relative to total bottleneck count — not absolute numbers. 100% critical transitions → ~20; all low severity → 100.">
-            <span className="text-zinc-500 cursor-help">Bottlenecks</span>
+          <InlineTooltip text="Severity of delays between steps. High = smooth flow, low = many critical bottlenecks.">
+            <span className="text-zinc-500 cursor-help">Delay Score</span>
           </InlineTooltip>
           <span className={`ml-1.5 font-mono font-medium ${scoreTextColor(bottleneckHealth)}`}>
             {Math.round(bottleneckHealth)}
           </span>
         </div>
         <div>
-          <InlineTooltip text="Automation burden (0–100). Fraction of activities with more than 10 copy-paste operations. 0% heavy copy-paste → 100; all activities copy-paste-heavy → 0.">
-            <span className="text-zinc-500 cursor-help">Automation</span>
+          <InlineTooltip text="How much repetitive manual work exists. High = clean, low = many activities with heavy copy-paste.">
+            <span className="text-zinc-500 cursor-help">Manual Work</span>
           </InlineTooltip>
           <span className={`ml-1.5 font-mono font-medium ${scoreTextColor(automationBurden)}`}>
             {Math.round(automationBurden)}
