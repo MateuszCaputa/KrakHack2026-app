@@ -318,10 +318,10 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
             {/* Legend */}
             <div className="space-y-2.5 flex-1">
               {[
-                { color: '#22c55e', label: 'Core Work', pct: timeBreakdown.core },
-                { color: '#f59e0b', label: 'Manual Data Transfer', pct: timeBreakdown.copy_paste },
-                { color: '#818cf8', label: 'Coordination', pct: timeBreakdown.coordination },
-                { color: '#f43f5e', label: 'Waiting / Blocked', pct: timeBreakdown.waiting },
+                { color: '#22c55e', label: 'Productive work', pct: timeBreakdown.core },
+                { color: '#f59e0b', label: 'Manual data entry', pct: timeBreakdown.copy_paste },
+                { color: '#818cf8', label: 'Meetings & emails', pct: timeBreakdown.coordination },
+                { color: '#f43f5e', label: 'Idle / waiting', pct: timeBreakdown.waiting },
               ].map(item => (
                 <div key={item.label} className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: item.color }} />
