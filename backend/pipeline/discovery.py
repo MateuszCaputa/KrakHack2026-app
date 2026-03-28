@@ -62,7 +62,7 @@ def _build_transitions(df: pd.DataFrame) -> pd.DataFrame:
     transitions = df.dropna(subset=["next_activity"]).copy()
     transitions["wait_seconds"] = (
         transitions["next_timestamp"] - transitions[TIMESTAMP_COL]
-    ).dt.total_seconds()
+    ).dt.total_seconds().clip(lower=0)
     return transitions
 
 

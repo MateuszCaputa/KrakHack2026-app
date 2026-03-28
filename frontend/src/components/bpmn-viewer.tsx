@@ -360,7 +360,7 @@ export function BpmnViewer({ pipeline, recommendations }: BpmnViewerProps) {
         <div className="ml-auto">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-950/60 border border-green-700/40 text-[10px] font-semibold text-green-400">
             <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            AI Generated
+            Generated Workflow
           </span>
         </div>
       </div>
