@@ -22,14 +22,16 @@ import { CategoryBreakdown, HubInsight } from './category-breakdown';
 import { DataFlowInsight } from './data-flow-insight';
 import { ActionCard } from './action-card';
 import { UserJourneyTimeline } from './user-journey-timeline';
+import { ExecutiveDashboard } from './executive-dashboard';
 import type { PipelineOutput, CopilotOutput, ImpactLevel, RecommendationType } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
 import { generateReport } from '@/lib/report';
 
-type TabId = 'overview' | 'impact' | 'bottlenecks' | 'variants' | 'ai' | 'bpmn' | 'live' | 'journey';
+type TabId = 'dashboard' | 'overview' | 'impact' | 'bottlenecks' | 'variants' | 'ai' | 'bpmn' | 'live' | 'journey';
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: 'dashboard', label: '⚡ Dashboard' },
   { id: 'overview', label: 'Overview' },
   { id: 'impact', label: 'Business Impact' },
   { id: 'bottlenecks', label: 'Bottlenecks' },
@@ -92,7 +94,7 @@ interface ProcessTabsProps {
 }
 
 export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const [copilot, setCopilot] = useState<CopilotOutput | null>(null);
   const [copilotError, setCopilotError] = useState<string | null>(null);
   const [bpmnXml, setBpmnXml] = useState<string | null>(null);
@@ -244,6 +246,13 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
           </button>
         ))}
       </div>
+
+      {/* Tab: Dashboard */}
+      {activeTab === 'dashboard' && (
+        <div className="tab-content" key="dashboard">
+          <ExecutiveDashboard pipeline={pipeline} copilot={copilot} />
+        </div>
+      )}
 
       {/* Tab: Overview */}
       {activeTab === 'overview' && (

@@ -1,0 +1,355 @@
+'use client';
+
+import { useMemo } from 'react';
+import type { PipelineOutput, CopilotOutput, Activity } from '@/lib/types';
+import { formatDuration } from '@/lib/utils';
+
+const HOURLY_RATE = 50; // € per hour — conservative loaded cost
+const PASSIVE_APPS = new Set(['Teams', 'Outlook', 'New Outlook', 'Slack', 'Gmail', 'Zoom', 'Meet']);
+
+interface ExecutiveDashboardProps {
+  pipeline: PipelineOutput;
+  copilot?: CopilotOutput | null;
+}
+
+interface Win {
+  tag: string;
+  tagColor: string;
+  title: string;
+  why: string;
+  eurPerMonth: number;
+  hoursPerMonth: number;
+}
+
+function formatEur(n: number): string {
+  return n >= 1000 ? `€${(n / 1000).toFixed(1)}k` : `€${Math.round(n)}`;
+}
+
+function classifyActivity(a: Activity): 'core' | 'copy_paste' | 'coordination' {
+  const name = a.name.toLowerCase();
+  if (
+    name.includes('communication') ||
+    name.includes('meeting') ||
+    name.includes('email') ||
+    a.applications.every(app => PASSIVE_APPS.has(app))
+  ) return 'coordination';
+  const rate = a.copy_paste_count / Math.max(1, a.avg_duration_seconds / 60);
+  return rate >= 0.3 || a.copy_paste_count >= 60 ? 'copy_paste' : 'core';
+}
+
+export function ExecutiveDashboard({ pipeline, copilot }: ExecutiveDashboardProps) {
+  const { statistics: stats, bottlenecks, activities } = pipeline;
+
+  const monthlyMultiplier = useMemo(() => {
+    const days = Math.max(
+      1,
+      (new Date(stats.end_date).getTime() - new Date(stats.start_date).getTime()) / 86_400_000
+    );
+    return 30 / days;
+  }, [stats]);
+
+  // ── Total monthly waste cost ────────────────────────────────────────────────
+  const { monthlyWasteHours, monthlyCost } = useMemo(() => {
+    const totalWaitSeconds = bottlenecks.reduce(
+      (s, bn) => s + bn.avg_wait_seconds * bn.case_count, 0
+    );
+    const hrs = (totalWaitSeconds / 3600) * monthlyMultiplier;
+    return { monthlyWasteHours: hrs, monthlyCost: Math.round(hrs * HOURLY_RATE) };
+  }, [bottlenecks, monthlyMultiplier]);
+
+  // ── Time breakdown for donut ────────────────────────────────────────────────
+  const timeBreakdown = useMemo(() => {
+    const totals = { core: 0, copy_paste: 0, coordination: 0 };
+    activities.forEach(a => {
+      const cls = classifyActivity(a);
+      totals[cls] += a.avg_duration_seconds * a.frequency;
+    });
+    const waitSecs = bottlenecks.reduce((s, bn) => s + bn.avg_wait_seconds * bn.case_count, 0);
+    const grand = totals.core + totals.copy_paste + totals.coordination + waitSecs;
+    const pct = (v: number) => Math.round((v / grand) * 100);
+    return {
+      core: pct(totals.core),
+      copy_paste: pct(totals.copy_paste),
+      coordination: pct(totals.coordination),
+      waiting: pct(waitSecs),
+    };
+  }, [activities, bottlenecks]);
+
+  // ── Top wins ────────────────────────────────────────────────────────────────
+  const wins: Win[] = useMemo(() => {
+    if (copilot?.recommendations?.length) {
+      return [...copilot.recommendations]
+        .sort((a, b) => b.estimated_time_saved_seconds - a.estimated_time_saved_seconds)
+        .slice(0, 3)
+        .map(r => {
+          const hrs = (r.estimated_time_saved_seconds / 3600) * monthlyMultiplier * stats.total_cases;
+          return {
+            tag: r.automation_type,
+            tagColor: r.impact === 'high' ? '#22c55e' : r.impact === 'medium' ? '#f59e0b' : '#818cf8',
+            title: r.target.length > 60 ? r.target.slice(0, 57) + '…' : r.target,
+            why: r.reasoning.split('.')[0] + '.',
+            eurPerMonth: Math.round(hrs * HOURLY_RATE),
+            hoursPerMonth: Math.round(hrs),
+          };
+        });
+    }
+
+    // Derive wins from pipeline data when copilot not yet run
+    const derived: Win[] = [];
+
+    // Win 1: biggest bottleneck
+    const worstBn = [...bottlenecks].sort(
+      (a, b) => b.avg_wait_seconds * b.case_count - a.avg_wait_seconds * a.case_count
+    )[0];
+    if (worstBn) {
+      const hrs = (worstBn.avg_wait_seconds * worstBn.case_count / 3600) * monthlyMultiplier;
+      derived.push({
+        tag: 'Fix Bottleneck',
+        tagColor: '#f43f5e',
+        title: `${worstBn.from_activity} → ${worstBn.to_activity}`,
+        why: `Average ${formatDuration(worstBn.avg_wait_seconds)} idle wait between these steps. Automating the handoff eliminates the delay entirely.`,
+        eurPerMonth: Math.round(hrs * HOURLY_RATE),
+        hoursPerMonth: Math.round(hrs),
+      });
+    }
+
+    // Win 2: highest copy-paste activity
+    const topCopyPaste = [...activities].sort((a, b) => b.copy_paste_count - a.copy_paste_count)[0];
+    if (topCopyPaste) {
+      const hrs = (topCopyPaste.copy_paste_count * 120 * topCopyPaste.frequency / 3600) * monthlyMultiplier;
+      derived.push({
+        tag: 'RPA',
+        tagColor: '#f59e0b',
+        title: topCopyPaste.name,
+        why: `${topCopyPaste.copy_paste_count} manual copy-paste operations per case across ${topCopyPaste.applications.slice(0, 2).join(' and ')}. Classic RPA target.`,
+        eurPerMonth: Math.round(hrs * HOURLY_RATE),
+        hoursPerMonth: Math.round(hrs),
+      });
+    }
+
+    // Win 3: most context-switch heavy
+    const topCtx = [...activities]
+      .filter(a => a.context_switch_count > 0)
+      .sort((a, b) => b.context_switch_count * b.frequency - a.context_switch_count * a.frequency)[0];
+    if (topCtx) {
+      const hrs = (topCtx.context_switch_count * 90 * topCtx.frequency / 3600) * monthlyMultiplier;
+      derived.push({
+        tag: 'Eliminate',
+        tagColor: '#818cf8',
+        title: topCtx.name,
+        why: `${topCtx.context_switch_count} app switches per case. Every switch costs ~90 s of re-focus time. Consolidate to one tool.`,
+        eurPerMonth: Math.round(hrs * HOURLY_RATE),
+        hoursPerMonth: Math.round(hrs),
+      });
+    }
+
+    return derived;
+  }, [copilot, bottlenecks, activities, monthlyMultiplier, stats.total_cases]);
+
+  // ── Worst bottleneck ────────────────────────────────────────────────────────
+  const worstBn = useMemo(() =>
+    [...bottlenecks].sort((a, b) =>
+      b.avg_wait_seconds * b.case_count - a.avg_wait_seconds * a.case_count
+    )[0],
+    [bottlenecks]
+  );
+
+  const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
+  const wastePct = timeBreakdown.copy_paste + timeBreakdown.waiting + timeBreakdown.coordination;
+
+  // Donut: conic-gradient segments (core → copy_paste → coordination → waiting)
+  const donutGradient = (() => {
+    const c = timeBreakdown;
+    const segments = [
+      { pct: c.core, color: '#22c55e' },
+      { pct: c.copy_paste, color: '#f59e0b' },
+      { pct: c.coordination, color: '#818cf8' },
+      { pct: c.waiting, color: '#f43f5e' },
+    ];
+    let cursor = 0;
+    const parts = segments.map(s => {
+      const from = cursor;
+      cursor += s.pct;
+      return `${s.color} ${from}% ${cursor}%`;
+    });
+    return `conic-gradient(${parts.join(', ')})`;
+  })();
+
+  return (
+    <div className="space-y-6">
+
+      {/* ── HERO ── */}
+      <div className="relative overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-800 px-8 py-8">
+        {/* Subtle red glow behind the number */}
+        <div className="absolute -top-10 -left-10 w-64 h-64 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative">
+          <p className="text-xs uppercase tracking-widest text-zinc-500 mb-1 font-medium">
+            Monthly cost of unautomated manual work
+          </p>
+          <div className="flex items-end gap-4 flex-wrap">
+            <span className="text-7xl font-black text-red-400 leading-none tabular-nums">
+              {formatEur(monthlyCost)}
+            </span>
+            <div className="mb-2 space-y-0.5">
+              <p className="text-zinc-300 text-lg font-medium">walking out the door</p>
+              <p className="text-zinc-500 text-sm">
+                {Math.round(monthlyWasteHours)}h of idle wait · {stats.total_users} employees · {stats.total_cases} cases analyzed
+              </p>
+            </div>
+          </div>
+
+          {/* 3 inline stat pills */}
+          <div className="flex gap-3 flex-wrap mt-5">
+            {[
+              { label: 'Automation Waste', value: `${wastePct}% of work time`, accent: 'text-red-400' },
+              { label: 'Avg Case Duration', value: formatDuration(stats.avg_case_duration_seconds), accent: 'text-zinc-200' },
+              { label: 'Potential Monthly Savings', value: formatEur(totalPotentialSavings), accent: 'text-green-400' },
+            ].map(s => (
+              <div key={s.label} className="flex items-center gap-2 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-1.5">
+                <span className="text-xs text-zinc-500">{s.label}</span>
+                <span className={`text-xs font-semibold ${s.accent}`}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── TOP 3 WINS ── */}
+      <div>
+        <p className="text-xs uppercase tracking-widest text-zinc-500 font-medium mb-3">
+          Top automation wins — act on these first
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          {wins.map((win, i) => (
+            <div
+              key={i}
+              className="relative bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col gap-3 overflow-hidden"
+            >
+              {/* Rank */}
+              <div className="absolute top-4 right-4 text-3xl font-black text-zinc-800 select-none leading-none">
+                #{i + 1}
+              </div>
+              {/* Tag */}
+              <div
+                className="inline-flex self-start text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded"
+                style={{ backgroundColor: win.tagColor + '22', color: win.tagColor }}
+              >
+                {win.tag}
+              </div>
+              {/* Title */}
+              <p className="text-sm font-semibold text-zinc-100 leading-snug pr-6">{win.title}</p>
+              {/* Why */}
+              <p className="text-xs text-zinc-400 leading-relaxed flex-1">{win.why}</p>
+              {/* Savings */}
+              <div className="border-t border-zinc-800 pt-3 flex items-end justify-between">
+                <div>
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Save per month</p>
+                  <p className="text-2xl font-black text-green-400">{formatEur(win.eurPerMonth)}</p>
+                </div>
+                <p className="text-xs text-zinc-500">{win.hoursPerMonth}h recovered</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── MIDDLE ROW: donut + worst bottleneck ── */}
+      <div className="grid grid-cols-2 gap-4">
+
+        {/* Time breakdown */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
+          <p className="text-xs uppercase tracking-widest text-zinc-500 font-medium mb-4">
+            Where time actually goes
+          </p>
+          <div className="flex items-center gap-6">
+            {/* Donut */}
+            <div className="relative w-36 h-36 shrink-0">
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{ background: donutGradient }}
+              />
+              <div className="absolute inset-5 rounded-full bg-zinc-900 flex flex-col items-center justify-center">
+                <span className="text-xl font-black text-white">{wastePct}%</span>
+                <span className="text-[9px] text-zinc-500 uppercase tracking-wide">waste</span>
+              </div>
+            </div>
+            {/* Legend */}
+            <div className="space-y-2.5 flex-1">
+              {[
+                { color: '#22c55e', label: 'Core Work', pct: timeBreakdown.core },
+                { color: '#f59e0b', label: 'Manual Data Transfer', pct: timeBreakdown.copy_paste },
+                { color: '#818cf8', label: 'Coordination', pct: timeBreakdown.coordination },
+                { color: '#f43f5e', label: 'Waiting / Blocked', pct: timeBreakdown.waiting },
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: item.color }} />
+                  <span className="text-xs text-zinc-400 flex-1">{item.label}</span>
+                  <span className="text-xs font-semibold text-zinc-200 tabular-nums">{item.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Worst bottleneck */}
+        {worstBn && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 flex flex-col gap-4">
+            <p className="text-xs uppercase tracking-widest text-zinc-500 font-medium">
+              Biggest single bottleneck
+            </p>
+            <div className="flex items-center gap-3">
+              <div
+                className="shrink-0 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded"
+                style={{ backgroundColor: '#f43f5e22', color: '#f43f5e' }}
+              >
+                {worstBn.severity}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-zinc-300 font-medium flex-wrap">
+              <span className="bg-zinc-800 px-2 py-1 rounded">{worstBn.from_activity}</span>
+              <span className="text-zinc-600">→</span>
+              <span className="bg-zinc-800 px-2 py-1 rounded">{worstBn.to_activity}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-auto">
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Avg wait</p>
+                <p className="text-2xl font-black text-red-400">{formatDuration(worstBn.avg_wait_seconds)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Cases affected</p>
+                <p className="text-2xl font-black text-zinc-200">{worstBn.case_count}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Total time lost (dataset)</p>
+                <p className="text-lg font-bold text-zinc-300">
+                  {Math.round(worstBn.avg_wait_seconds * worstBn.case_count / 3600)}h
+                  <span className="text-zinc-500 font-normal text-xs ml-1.5">
+                    = {formatEur(Math.round(worstBn.avg_wait_seconds * worstBn.case_count / 3600 * HOURLY_RATE))} in lost labor
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── BOTTOM: process stats strip ── */}
+      <div className="grid grid-cols-5 gap-3">
+        {[
+          { label: 'Users observed', value: stats.total_users },
+          { label: 'Applications used', value: stats.total_applications },
+          { label: 'Process variants', value: stats.total_variants, note: 'paths diverge from standard' },
+          { label: 'Total interactions', value: stats.total_events.toLocaleString() },
+          { label: 'Bottlenecks detected', value: bottlenecks.length, note: `${bottlenecks.filter(b => b.severity === 'critical' || b.severity === 'high').length} critical/high` },
+        ].map(s => (
+          <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+            <p className="text-2xl font-black text-zinc-100">{s.value}</p>
+            <p className="text-[10px] text-zinc-500 mt-0.5">{s.label}</p>
+            {s.note && <p className="text-[9px] text-zinc-600 mt-0.5">{s.note}</p>}
+          </div>
+        ))}
+      </div>
+
+    </div>
+  );
+}
