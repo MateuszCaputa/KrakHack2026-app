@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { PipelineOutput, CopilotOutput, Activity } from '@/lib/types';
 import { formatDuration } from '@/lib/utils';
 import { normalizeActivityName, formatBottleneckTransition } from '@/lib/format-names';
@@ -206,6 +206,58 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
     return `conic-gradient(${parts.join(', ')})`;
   })();
 
+  const [copyState, setCopyState] = useState<'idle' | 'generating' | 'copied'>('idle');
+
+  async function handleCopySummary(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (copyState === 'generating') return;
+
+    setCopyState('generating');
+
+    // Build a rich data context for Gemini
+    const topActivities = [...activities]
+      .sort((a, b) => b.copy_paste_count - a.copy_paste_count)
+      .slice(0, 5)
+      .map(a => `${a.name}: ${a.copy_paste_count} copy-paste ops, ${a.context_switch_count} app switches, used in ${a.applications.join(', ')}`);
+
+    const topBottlenecks = [...bottlenecks]
+      .sort((a, b) => b.avg_wait_seconds * b.case_count - a.avg_wait_seconds * a.case_count)
+      .slice(0, 3)
+      .map(b => `${b.from_activity} → ${b.to_activity}: avg ${formatDuration(b.avg_wait_seconds)} wait, ${b.case_count} cases, ${b.severity} severity`);
+
+    const prompt = `You are a process automation consultant. Based on this Task Mining analysis, write a 3-4 sentence executive summary for a non-technical manager. Be specific about WHAT is wasted and WHY, name concrete activities and apps. No jargon. No bullet points — flowing prose only.
+
+DATA:
+- Monthly waste: ${formatEur(monthlyCost)} (${Math.round(monthlyWasteHours)}h of idle time)
+- ${wastePct}% of work time is non-core (${timeBreakdown.copy_paste}% manual data transfer, ${timeBreakdown.waiting}% waiting/blocked, ${timeBreakdown.coordination}% coordination)
+- ${stats.total_users} employees, ${stats.total_cases} process executions, ${stats.total_activities} distinct activities
+- Top copy-paste heavy activities: ${topActivities.join('; ')}
+- Top bottlenecks (delays): ${topBottlenecks.join('; ')}
+- Top 3 automation wins: ${wins.map((w, i) => `#${i+1} ${w.title} (${w.tag}): ${w.why} Saves ${formatEur(w.eurPerMonth)}/mo`).join('; ')}
+
+Write the summary now. Start with the business impact, then the root cause, then the recommended action.`;
+
+    try {
+      const res = await fetch('/api/ask-bottleneck', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+      const summary = data.text || data.error || 'Could not generate summary.';
+
+      await navigator.clipboard.writeText(summary);
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 3000);
+    } catch {
+      // Fallback to static summary
+      const fallback = `Our process wastes ${formatEur(monthlyCost)}/month — ${wastePct}% of work time goes to manual data transfers and waiting. Top fix: ${wins[0]?.title ?? 'see analysis'} (saves ${formatEur(wins[0]?.eurPerMonth ?? 0)}/mo). ${stats.total_users} employees observed across ${stats.total_cases} cases.`;
+      await navigator.clipboard.writeText(fallback);
+      setCopyState('copied');
+      setTimeout(() => setCopyState('idle'), 3000);
+    }
+  }
+
   return (
     <div className="space-y-6">
 
@@ -217,9 +269,39 @@ const totalPotentialSavings = wins.reduce((s, w) => s + w.eurPerMonth, 0);
         {/* Subtle red glow behind the number */}
         <div className="absolute -top-10 -left-10 w-64 h-64 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative">
-          <p className="text-xs uppercase tracking-widest text-zinc-500 mb-1 font-medium">
-            Monthly cost of unautomated manual work
-          </p>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs uppercase tracking-widest text-zinc-500 font-medium">
+              Monthly cost of unautomated manual work
+            </p>
+            <button
+              onClick={handleCopySummary}
+              disabled={copyState === 'generating'}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+                copyState === 'copied'
+                  ? 'bg-green-900/30 border-green-700/50 text-green-400'
+                  : copyState === 'generating'
+                  ? 'bg-indigo-900/20 border-indigo-700/40 text-indigo-400 cursor-wait'
+                  : 'bg-zinc-800/60 border-zinc-700/50 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'
+              }`}
+            >
+              {copyState === 'copied' ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Copied!
+                </>
+              ) : copyState === 'generating' ? (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" className="animate-spin"><circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="20 10" /></svg>
+                  AI writing...
+                </>
+              ) : (
+                <>
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><rect x="4" y="1" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="1.2"/><path d="M1 4v6a1 1 0 001 1h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
+                  Copy for your boss
+                </>
+              )}
+            </button>
+          </div>
           <div className="flex items-end gap-4 flex-wrap">
             <span className="text-7xl font-black text-red-400 leading-none tabular-nums">
               {formatEur(monthlyCost)}

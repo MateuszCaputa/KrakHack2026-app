@@ -171,7 +171,7 @@ export function generateReport(pipeline: PipelineOutput, copilot: CopilotOutput 
 
 <div class="header">
   <div class="header-top">
-    <div class="logo">Process-to-Automation Copilot</div>
+    <div class="logo">WorkTrace</div>
     <div class="meta">Generated: ${esc(now)}<br>Process ID: ${esc(pipeline.process_id)}<br>Period: ${esc(formatDate(stats.start_date))} – ${esc(formatDate(stats.end_date))}</div>
   </div>
   <h1>Process Analysis Report</h1>
@@ -390,7 +390,7 @@ ${sortedVariants.map((v, i) => `<tr>
 </div>
 
 <footer>
-  <span>Process-to-Automation Copilot · KrakHack 2026</span>
+  <span>WorkTrace · KrakHack 2026</span>
   <span>Process ID: ${esc(pipeline.process_id)} · ${esc(now)}</span>
 </footer>
 

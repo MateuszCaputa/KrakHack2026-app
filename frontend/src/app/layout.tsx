@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Process Copilot — KrakHack 2026",
+  title: "WorkTrace — KrakHack 2026",
   description: "AI copilot for process mining and automation",
 };
 
@@ -35,7 +35,7 @@ export default function RootLayout({
             <div className="flex items-center gap-2.5">
               <div className="w-2.5 h-2.5 rounded-sm accent-gradient" />
               <h1 className="text-lg font-semibold tracking-tight font-[family-name:var(--font-geist-sans)]">
-                Process Copilot
+                WorkTrace
               </h1>
             </div>
             <span className="text-xs text-zinc-500 font-[family-name:var(--font-geist-mono)]">
@@ -47,7 +47,7 @@ export default function RootLayout({
           {children}
         </main>
         <footer className="py-4 text-center text-[11px] text-zinc-500 relative z-10">
-          Process-to-Automation Copilot — KrakHack 2026 | Powered by pm4py + Gemini
+          WorkTrace — KrakHack 2026 | Powered by pm4py + Gemini
         </footer>
       </body>
     </html>

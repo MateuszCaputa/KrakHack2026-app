@@ -113,7 +113,7 @@ export default function HomePage() {
               KrakHack 2026
             </div>
             <h1 className="text-4xl sm:text-5xl font-light tracking-tight text-gradient">
-              Process Copilot
+              WorkTrace
             </h1>
             <p className="text-zinc-500 text-base leading-relaxed max-w-md mx-auto">
               AI-powered process mining — discover workflows, detect bottlenecks,

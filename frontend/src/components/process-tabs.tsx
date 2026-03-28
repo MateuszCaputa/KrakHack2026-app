@@ -283,6 +283,12 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
             onSetMinDuration={setMinDuration}
             onClear={() => clearTabFilters('overview')}
           />
+          {filters.users.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-400 bg-blue-900/10 border border-blue-800/30 rounded-lg px-3 py-2">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1.1"/><path d="M5.5 4.5v3M5.5 3.5v.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>
+              Filtering by {filters.users.length} user{filters.users.length > 1 ? 's' : ''} — activities, data transfers, and performer data update accordingly. Cost and health metrics show full-process values.
+            </div>
+          )}
           <CostOfInaction pipeline={pipeline} />
           <HealthScore pipeline={pipeline} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -330,14 +336,29 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
           <CategoryBreakdown activities={filteredActivities} />
 
           {/* Communication hub insight */}
-          {copy_paste_flows && copy_paste_flows.length > 0 && (
-            <HubInsight copyPasteFlows={copy_paste_flows} />
-          )}
+          {copy_paste_flows && copy_paste_flows.length > 0 && (() => {
+            // Filter copy-paste flows by apps used by selected users
+            const userApps = filters.users.length > 0
+              ? new Set(filteredActivities.flatMap(a => a.applications))
+              : null;
+            const visibleFlows = userApps
+              ? copy_paste_flows.filter(f => userApps.has(f.source_app) || userApps.has(f.target_app))
+              : copy_paste_flows;
+            return visibleFlows.length > 0 ? <HubInsight copyPasteFlows={visibleFlows} /> : null;
+          })()}
 
           {/* Cross-department data flows */}
-          {copy_paste_flows && copy_paste_flows.length > 0 && (
-            <DataFlowInsight activities={pipeline.activities} copyPasteFlows={copy_paste_flows} />
-          )}
+          {copy_paste_flows && copy_paste_flows.length > 0 && (() => {
+            const userApps = filters.users.length > 0
+              ? new Set(filteredActivities.flatMap(a => a.applications))
+              : null;
+            const visibleFlows = userApps
+              ? copy_paste_flows.filter(f => userApps.has(f.source_app) || userApps.has(f.target_app))
+              : copy_paste_flows;
+            return visibleFlows.length > 0
+              ? <DataFlowInsight activities={filteredActivities} copyPasteFlows={visibleFlows} />
+              : null;
+          })()}
 
           {/* Business ID visibility gap */}
           <BusinessIdInsight pipeline={pipeline} />
@@ -487,7 +508,15 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
 
           {/* Cross-App Data Transfers */}
           {copy_paste_flows && copy_paste_flows.length > 0 && (() => {
-            const maxFlow = Math.max(...copy_paste_flows.map((f) => f.count));
+            // Filter by selected users' apps
+            const userApps = filters.users.length > 0
+              ? new Set(filteredActivities.flatMap(a => a.applications))
+              : null;
+            const flowsForUsers = userApps
+              ? copy_paste_flows.filter(f => userApps.has(f.source_app) || userApps.has(f.target_app))
+              : copy_paste_flows;
+            if (flowsForUsers.length === 0) return null;
+            const maxFlow = Math.max(...flowsForUsers.map((f) => f.count));
             return (
               <CollapsibleSection
                 title="Cross-App Data Transfers"
@@ -495,7 +524,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               >
                 <div className="p-4 space-y-3">
                   {(() => {
-                    const sorted = [...copy_paste_flows].sort((a, b) => b.count - a.count);
+                    const sorted = [...flowsForUsers].sort((a, b) => b.count - a.count);
                     const visible = showAllTransfers ? sorted : sorted.slice(0, 10);
                     return (
                       <>
@@ -878,40 +907,10 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
             sorted
               .slice(0, 10)
               .map((v, idx) => (
-                <VariantCard key={v.variant_id} variant={v} isHappyPath={idx === 0} happyPathSteps={happyPathSteps} />
+                <VariantCard key={v.variant_id} variant={v} isHappyPath={idx === 0} happyPathSteps={happyPathSteps} recommendations={copilot?.recommendations ?? null} />
               ))
           )}
-          {/* Process Blueprint */}
-          {sorted.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 mt-4">
-              <h4 className="text-sm font-semibold text-zinc-100 mb-1">Process Blueprint</h4>
-              <p className="text-xs text-zinc-500 mb-4">Most common path through the process (Variant #1)</p>
-              <div className="flex items-center gap-1 flex-wrap">
-                {sorted[0].sequence.slice(0, 12).map((step, i) => {
-                  const isBn = pipeline.bottlenecks.some(bn => bn.from_activity === step || bn.to_activity === step);
-                  const hasCopyPaste = pipeline.activities.find(a => a.name === step)?.copy_paste_count ?? 0;
-                  return (
-                    <React.Fragment key={i}>
-                      {i > 0 && <span className="text-zinc-600 text-xs">&rarr;</span>}
-                      <span className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium ${
-                        isBn ? 'bg-red-950/30 border-red-800/40 text-red-300' :
-                        hasCopyPaste > 30 ? 'bg-blue-950/30 border-blue-800/40 text-blue-300' :
-                        'bg-zinc-800 border-zinc-700 text-zinc-300'
-                      }`}>
-                        {step}
-                      </span>
-                    </React.Fragment>
-                  );
-                })}
-                {sorted[0].sequence.length > 12 && <span className="text-xs text-zinc-500">+{sorted[0].sequence.length - 12} more steps</span>}
-              </div>
-              <div className="flex gap-3 mt-3 text-[10px] text-zinc-500">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500/60" /> Bottleneck</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-blue-500/60" /> Copy-paste heavy</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-zinc-600" /> Normal</span>
-              </div>
-            </div>
-          )}
+
         </div>
         );
       })()}
@@ -1159,11 +1158,16 @@ function VariantCard({
   variant: v,
   isHappyPath = false,
   happyPathSteps,
+  recommendations,
 }: {
   variant: ProcessTabsProps['pipeline']['variants'][number];
   isHappyPath?: boolean;
   happyPathSteps: Set<string>;
+  recommendations?: import('@/lib/types').Recommendation[] | null;
 }) {
+  const recMap = recommendations
+    ? new Map(recommendations.map(r => [r.target, r]))
+    : new Map<string, import('@/lib/types').Recommendation>();
   const compressed = compressSequence(v.sequence);
   const isLong = compressed.length > COLLAPSED_MAX;
   const [expanded, setExpanded] = useState(!isLong);
@@ -1241,11 +1245,29 @@ function VariantCard({
                   ))}
                   <span className="text-xs font-mono text-amber-400 ml-1">{'\u00d7'}{segment.count}</span>
                 </span>
-              ) : (
-                <span className={singleStepClass(segment.steps[0])}>
-                  {segment.steps[0]}
-                </span>
-              )}
+              ) : (() => {
+                const step = segment.steps[0];
+                const rec = recMap.get(step);
+                const TYPE_ICONS: Record<string, string> = { automate: '⚡', eliminate: '✕', simplify: '◈', parallelize: '⇉', reassign: '→' };
+                return rec ? (
+                  <InlineTooltip text={`${rec.type.toUpperCase()}: ${rec.reasoning.split('.')[0]}. Saves ~${Math.round(rec.estimated_time_saved_seconds)}s/case · ${rec.affected_cases_percentage}% cases affected`}>
+                    <span className="relative inline-flex items-center">
+                      <span className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                        rec.impact === 'high' ? 'bg-green-950/30 text-green-300 border-green-700/50' :
+                        rec.impact === 'medium' ? 'bg-blue-950/30 text-blue-300 border-blue-700/50' :
+                        'bg-zinc-800 text-zinc-300 border-zinc-600'
+                      }`}>
+                        <span className="mr-1 text-[10px]">{TYPE_ICONS[rec.type] ?? '⚡'}</span>
+                        {step}
+                      </span>
+                    </span>
+                  </InlineTooltip>
+                ) : (
+                  <span className={singleStepClass(step)}>
+                    {step}
+                  </span>
+                );
+              })()}
               {idx < visible.length - 1 && (
                 <span className="text-zinc-500 text-xs">{'\u2192'}</span>
               )}

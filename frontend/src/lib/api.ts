@@ -1,5 +1,5 @@
 /**
- * Typed API client for the Process Copilot backend.
+ * Typed API client for the WorkTrace backend.
  * All requests go directly to the FastAPI backend — no Next.js API routes.
  */
 
