@@ -9,6 +9,7 @@ import { CollapsibleSection } from './collapsible-section';
 import { InlineTooltip } from './tooltip';
 import { LiveMonitor } from './live-monitor';
 import { HealthScore } from './health-score';
+import { RoiCalculator } from './roi-calculator';
 import type { PipelineOutput, CopilotOutput } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
@@ -572,6 +573,10 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
                       ))}
                   </div>
                 </CollapsibleSection>
+              )}
+
+              {copilot.recommendations?.length > 0 && (
+                <RoiCalculator recommendations={copilot.recommendations} pipeline={pipeline} />
               )}
 
               {copilot.reference_bpmn_comparison && (
