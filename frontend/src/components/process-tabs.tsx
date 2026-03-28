@@ -8,6 +8,7 @@ import { BpmnViewer } from './bpmn-viewer';
 import { CollapsibleSection } from './collapsible-section';
 import { InlineTooltip } from './tooltip';
 import { LiveMonitor } from './live-monitor';
+import { HealthScore } from './health-score';
 import type { PipelineOutput, CopilotOutput } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
@@ -186,6 +187,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       {/* Tab: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
+          <HealthScore pipeline={pipeline} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <StatCard
               label="Date Range"
