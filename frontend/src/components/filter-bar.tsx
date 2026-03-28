@@ -47,7 +47,7 @@ function SeverityToggle({
         active ? s.active : s.idle
       }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-opacity ${s.dot} ${active ? 'opacity-100' : 'opacity-30'}`} />
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${active ? s.dot : 'bg-zinc-600'}`} />
       {sev}
     </button>
   );
@@ -307,7 +307,7 @@ function ActiveUserPills({
           {labels[u] ?? u.slice(0, 8) + '…'}
           <button
             onClick={() => onToggle(u)}
-            className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded-full bg-blue-800/60 hover:bg-blue-600 transition-colors"
+            className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded-full bg-blue-800/60 hover:bg-blue-600 transition-colors cursor-pointer"
             aria-label={`Remove ${labels[u] ?? u}`}
           >
             <svg width="7" height="7" viewBox="0 0 7 7" fill="none">
