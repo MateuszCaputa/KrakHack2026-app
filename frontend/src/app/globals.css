@@ -207,13 +207,19 @@
 }
 
 @keyframes orb-float-1 {
-  0%, 100% { transform: translate(0%, 0%); }
-  50%      { transform: translate(5%, -8%); }
+  0%   { transform: translate(0%, 0%) scale(1); }
+  25%  { transform: translate(8%, -12%) scale(1.05); }
+  50%  { transform: translate(-5%, -8%) scale(0.95); }
+  75%  { transform: translate(10%, 5%) scale(1.02); }
+  100% { transform: translate(0%, 0%) scale(1); }
 }
 
 @keyframes orb-float-2 {
-  0%, 100% { transform: translate(0%, 0%); }
-  50%      { transform: translate(-7%, 5%); }
+  0%   { transform: translate(0%, 0%) scale(1); }
+  25%  { transform: translate(-10%, 8%) scale(0.97); }
+  50%  { transform: translate(7%, 12%) scale(1.05); }
+  75%  { transform: translate(-5%, -6%) scale(0.98); }
+  100% { transform: translate(0%, 0%) scale(1); }
 }
 
 @keyframes pulse-glow {
