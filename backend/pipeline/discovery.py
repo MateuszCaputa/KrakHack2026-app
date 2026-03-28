@@ -17,6 +17,53 @@ CLICKS_COL = "clicks_no"
 TEXT_COL = "text_entries_no"
 
 
+ACTIVITY_CATEGORIES: dict[str, list[str]] = {
+    "Communication": [
+        "Use Teams Application", "Use Outlook Application", "Use LinkedIn",
+        "New Feed read LinkedIn", "New notification", "Use Hubspot",
+    ],
+    "Development": [
+        "Working on kyp-backend", "Develop kyp-frontend application",
+        "Shell scripting", "Use GitLab", "IntelliJOcr", "Use Database Client",
+        "pgAdmin", "Browse Repository", "Querying data",
+    ],
+    "Web & Research": [
+        "Browsing in Chrome", "Searching Google", "AI Searching",
+        "Use Microsoft Edge", "Use Google Chrome", "Use DeepL",
+    ],
+    "Documentation": [
+        "Create notes", "Creating notes", "Read Confluence",
+        "Working on text document", "Working on Excel Sheet",
+        "Working on shared files", "Create screenshot", "Work on Presentation",
+    ],
+    "Project Management": [
+        "View Agile Board", "View Issue List", "Update working progress",
+        "Dashboard review", "Use kyp.ai", "DevOps Multi Team",
+    ],
+    "Admin & Config": [
+        "Configure Anonymization & Data Masking", "Configure Applications",
+        "Configure General Settings", "Configure Organization Management",
+        "Configure Process Assignment", "Configure Process Matching",
+        "Configure Process Step Naming Rule", "Configure Task Level",
+        "Admin Space", "Discovery Space",
+    ],
+    "File & System": [
+        "View Files", "View Downloads  Files", "Windows Explorer",
+        "Remote connection", "Remote Host Access", "Use Finder",
+        "Use Kyp repository", "Working with Discovery Environment",
+    ],
+}
+
+_STEP_TO_CATEGORY: dict[str, str] = {}
+for _cat, _steps in ACTIVITY_CATEGORIES.items():
+    for _step in _steps:
+        _STEP_TO_CATEGORY[_step] = _cat
+
+
+def _categorize_activity(name: str) -> str | None:
+    return _STEP_TO_CATEGORY.get(name)
+
+
 def _compute_context_switches(df: pd.DataFrame) -> dict[str, int]:
     """Count application switches per activity across all cases.
 
@@ -79,6 +126,7 @@ def discover_activities(df: pd.DataFrame) -> list[Activity]:
             copy_paste_count=copy_paste,
             manual_interaction_count=manual_interactions,
             context_switch_count=int(context_switches.get(str(name), 0)),
+            category=_categorize_activity(str(name)),
         ))
 
     return sorted(activities, key=lambda a: a.frequency, reverse=True)

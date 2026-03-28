@@ -37,6 +37,7 @@ class Activity(BaseModel):
     manual_interaction_count: int = 0
     copy_paste_count: int = 0
     context_switch_count: int = 0
+    category: str | None = None
 
 
 # Keep alias for frontend compatibility
