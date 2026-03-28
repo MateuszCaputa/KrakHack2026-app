@@ -462,7 +462,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
       {/* Tab: AI Analysis */}
       {activeTab === 'ai' && (
         <div className="space-y-6">
-          {!copilot && (
+          {!copilot && !isPending && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center space-y-4">
               <div>
                 <p className="text-zinc-200 font-medium">Run AI Analysis</p>
@@ -475,18 +475,37 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               )}
               <button
                 onClick={handleRunAnalysis}
-                disabled={isPending}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
               >
-                {isPending ? (
-                  <>
-                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                    Analysing...
-                  </>
-                ) : (
-                  'Run AI Analysis'
-                )}
+                Run AI Analysis
               </button>
+            </div>
+          )}
+
+          {!copilot && isPending && (
+            <div className="space-y-6">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-3">
+                <div className="h-4 w-24 bg-zinc-800 rounded animate-pulse" />
+                <div className="h-3 w-full bg-zinc-800 rounded animate-pulse" />
+                <div className="h-3 w-3/4 bg-zinc-800 rounded animate-pulse" />
+              </div>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-5 w-16 bg-zinc-800 rounded animate-pulse" />
+                    <div className="h-4 w-48 bg-zinc-800 rounded animate-pulse" />
+                  </div>
+                  <div className="h-3 w-full bg-zinc-800 rounded animate-pulse" />
+                  <div className="h-3 w-5/6 bg-zinc-800 rounded animate-pulse" />
+                  <div className="flex gap-2">
+                    <div className="h-5 w-20 bg-zinc-800 rounded animate-pulse" />
+                    <div className="h-5 w-20 bg-zinc-800 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+              <p className="text-center text-xs text-zinc-500 animate-pulse">
+                AI is analysing the process and generating recommendations...
+              </p>
             </div>
           )}
 
