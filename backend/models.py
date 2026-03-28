@@ -99,6 +99,13 @@ class ApplicationUsage(BaseModel):
     passive_duration_seconds: float
 
 
+class CopyPasteFlow(BaseModel):
+    """Copy-paste data flow between two applications from Activity Heatmap data."""
+    source_app: str
+    target_app: str
+    count: int
+
+
 class PipelineOutput(BaseModel):
     process_id: str
     activities: list[Activity]
@@ -107,6 +114,7 @@ class PipelineOutput(BaseModel):
     process_map: ProcessMap
     statistics: ProcessStatistics
     application_usage: list[ApplicationUsage] = []
+    copy_paste_flows: list[CopyPasteFlow] = []
 
 
 # --- Copilot Output Models ---

@@ -107,6 +107,39 @@ def to_pm4py_log(df: pd.DataFrame) -> pm4py.objects.log.obj.EventLog:
     return pm4py.convert_to_event_log(formatted)
 
 
+def load_activity_heatmap_csvs(directory: str) -> pd.DataFrame:
+    """Load Activity Heatmap Export CSV files (copy-paste flow data).
+
+    Returns DataFrame with columns: source_app, target_app, count.
+    Returns empty DataFrame if no heatmap files found.
+    """
+    pattern = os.path.join(directory, "Activity Heatmap Export*.csv")
+    paths = sorted(glob.glob(pattern))
+    if not paths:
+        return pd.DataFrame(columns=["source_app", "target_app", "count"])
+
+    frames = []
+    for path in paths:
+        df = pd.read_csv(path, dtype=str)
+        frames.append(df)
+
+    combined = pd.concat(frames, ignore_index=True)
+
+    copy_col = "Application(Copy&Cut)"
+    paste_col = "Application(Paste)"
+    count_col = "Count"
+
+    if copy_col not in combined.columns or paste_col not in combined.columns:
+        return pd.DataFrame(columns=["source_app", "target_app", "count"])
+
+    result = pd.DataFrame({
+        "source_app": combined[copy_col].fillna("").str.strip(),
+        "target_app": combined[paste_col].fillna("").str.strip(),
+        "count": pd.to_numeric(combined[count_col], errors="coerce").fillna(0).astype(int),
+    })
+    return result[result["count"] > 0]
+
+
 def ingest(directory: str) -> pd.DataFrame:
     """Load Activity Sequence CSVs from directory and return a cleaned event log DataFrame."""
     raw = load_activity_sequence_csvs(directory)

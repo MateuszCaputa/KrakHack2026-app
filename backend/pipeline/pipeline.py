@@ -4,8 +4,8 @@ import uuid
 
 import pandas as pd
 
-from backend.models import PipelineOutput, ProcessStatistics, ApplicationUsage
-from backend.pipeline.ingest import ingest, load_activity_sequence_csvs, prepare_dataframe
+from backend.models import PipelineOutput, ProcessStatistics, ApplicationUsage, CopyPasteFlow
+from backend.pipeline.ingest import ingest, load_activity_sequence_csvs, prepare_dataframe, load_activity_heatmap_csvs
 from backend.pipeline.discovery import discover_activities, discover_process_map
 from backend.pipeline.variants import discover_variants
 from backend.pipeline.bottlenecks import detect_bottlenecks
@@ -46,6 +46,7 @@ def run_pipeline(
     process_map = discover_process_map(df)
     statistics = _compute_statistics(df, variants)
     application_usage = _compute_application_usage(df)
+    copy_paste_flows = _load_copy_paste_flows(dataset_directory)
 
     return PipelineOutput(
         process_id=process_id,
@@ -55,7 +56,25 @@ def run_pipeline(
         process_map=process_map,
         statistics=statistics,
         application_usage=application_usage,
+        copy_paste_flows=copy_paste_flows,
     )
+
+
+def _load_copy_paste_flows(dataset_directory: str) -> list[CopyPasteFlow]:
+    """Load Activity Heatmap data and convert to CopyPasteFlow models."""
+    heatmap_df = load_activity_heatmap_csvs(dataset_directory)
+    if heatmap_df.empty:
+        return []
+    aggregated = heatmap_df.groupby(["source_app", "target_app"])["count"].sum().reset_index()
+    aggregated = aggregated.sort_values("count", ascending=False)
+    return [
+        CopyPasteFlow(
+            source_app=str(row["source_app"]),
+            target_app=str(row["target_app"]),
+            count=int(row["count"]),
+        )
+        for _, row in aggregated.iterrows()
+    ]
 
 
 def _compute_statistics(df: pd.DataFrame, variants: list) -> ProcessStatistics:

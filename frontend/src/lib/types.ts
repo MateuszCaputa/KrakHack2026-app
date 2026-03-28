@@ -87,6 +87,12 @@ export interface ApplicationUsage {
   passive_duration_seconds: number;
 }
 
+export interface CopyPasteFlow {
+  source_app: string;
+  target_app: string;
+  count: number;
+}
+
 export interface PipelineOutput {
   process_id: string;
   statistics: PipelineStatistics;
@@ -95,6 +101,7 @@ export interface PipelineOutput {
   bottlenecks: Bottleneck[];
   process_map: ProcessMap;
   application_usage: ApplicationUsage[];
+  copy_paste_flows: CopyPasteFlow[];
 }
 
 export type RecommendationType =

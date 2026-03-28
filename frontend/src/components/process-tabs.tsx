@@ -82,7 +82,7 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
   const [showAllBottlenecks, setShowAllBottlenecks] = useState(false);
   const [showAllActivities, setShowAllActivities] = useState(false);
 
-  const { statistics: stats, activities, bottlenecks, variants, application_usage } = pipeline;
+  const { statistics: stats, activities, bottlenecks, variants, application_usage, copy_paste_flows } = pipeline;
 
   const sortedActivities = [...activities].sort((a, b) => b.frequency - a.frequency);
   const topActivities = showAllActivities ? sortedActivities : sortedActivities.slice(0, 15);
@@ -325,6 +325,43 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               </div>
             </CollapsibleSection>
           )}
+
+          {/* Cross-App Data Transfers */}
+          {copy_paste_flows && copy_paste_flows.length > 0 && (() => {
+            const maxFlow = Math.max(...copy_paste_flows.map((f) => f.count));
+            return (
+              <CollapsibleSection
+                title="Cross-App Data Transfers"
+                tooltip="Copy-paste operations detected between applications from Activity Heatmap data — each flow represents manual data transfer that could be automated"
+              >
+                <div className="p-4 space-y-3">
+                  {[...copy_paste_flows]
+                    .sort((a, b) => b.count - a.count)
+                    .map((flow) => {
+                      const pct = maxFlow > 0 ? (flow.count / maxFlow) * 100 : 0;
+                      return (
+                        <div key={`${flow.source_app}-${flow.target_app}`} className="space-y-1">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-300">
+                              {flow.source_app} <span className="text-zinc-600">{'\u2192'}</span> {flow.target_app}
+                            </span>
+                            <span className="text-zinc-500 font-mono">
+                              {flow.count} operations
+                            </span>
+                          </div>
+                          <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-orange-600 rounded-full"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </CollapsibleSection>
+            );
+          })()}
         </div>
       )}
 
