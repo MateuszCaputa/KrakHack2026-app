@@ -12,6 +12,7 @@ import { HealthScore } from './health-score';
 import { RoiCalculator } from './roi-calculator';
 import { AskProcess } from './ask-process';
 import { AutomationMatrix } from './automation-matrix';
+import { BeforeAfter } from './before-after';
 import type { PipelineOutput, CopilotOutput } from '@/lib/types';
 import { formatDuration, formatDate } from '@/lib/utils';
 import { runAnalysis, getBpmnXml } from '@/lib/api';
@@ -667,6 +668,8 @@ export function ProcessTabs({ pipeline, processId }: ProcessTabsProps) {
               {copilot.recommendations?.length > 0 && (
                 <RoiCalculator recommendations={copilot.recommendations} pipeline={pipeline} />
               )}
+
+              <BeforeAfter pipeline={pipeline} copilot={copilot} />
 
               {copilot.reference_bpmn_comparison && (
                 <CollapsibleSection
