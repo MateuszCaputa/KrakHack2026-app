@@ -41,6 +41,9 @@ export default function RootLayout({
         <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-8">
           {children}
         </main>
+        <footer className="border-t border-zinc-800 py-4 text-center text-xs text-zinc-600">
+          Process-to-Automation Copilot — KrakHack 2026 | Powered by pm4py + Gemini
+        </footer>
       </body>
     </html>
   );
