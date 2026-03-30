@@ -55,15 +55,38 @@ def ingest_sample(directory: str, max_files: int = 3) -> pd.DataFrame:
     return prepare_dataframe(raw)
 
 
+SESSION_GAP_MINUTES = 30
+
+
 def _resolve_case_ids(df: pd.DataFrame) -> pd.Series:
-    """Vectorized case ID resolution: Business ID with User UUID fallback."""
+    """Vectorized case ID resolution: Business ID with session-based fallback.
+
+    For rows without a valid Business ID, splits events into sessions based on
+    inactivity gaps > SESSION_GAP_MINUTES within each user UUID group.
+    """
     bid = df[CASE_COL].fillna("").str.strip()
     invalid = bid.isin(["", "NOT_FOUND"]) | (bid == "nan")
 
-    uuid = df[USER_UUID_COL].fillna("").str.strip() if USER_UUID_COL in df.columns else pd.Series("", index=df.index)
-    uuid_case = "session-" + uuid.where(uuid != "", other="unknown")
+    if not invalid.any():
+        return bid
 
-    return bid.where(~invalid, other=uuid_case)
+    uuid_col = df[USER_UUID_COL].fillna("unknown").str.strip() if USER_UUID_COL in df.columns else pd.Series("unknown", index=df.index)
+    timestamp = pd.to_datetime(df[TIMESTAMP_COL], errors="coerce", utc=False)
+
+    session_ids = pd.Series("", index=df.index, dtype=str)
+    invalid_df = df[invalid].copy()
+    invalid_df["_uuid"] = uuid_col[invalid]
+    invalid_df["_ts"] = timestamp[invalid]
+    invalid_df = invalid_df.sort_values(["_uuid", "_ts"])
+
+    for uuid_val, group in invalid_df.groupby("_uuid", sort=False):
+        time_diff = group["_ts"].diff()
+        new_session = time_diff > pd.Timedelta(minutes=SESSION_GAP_MINUTES)
+        session_num = new_session.cumsum()
+        ids = f"session-{uuid_val}-" + session_num.astype(str)
+        session_ids[group.index] = ids
+
+    return bid.where(~invalid, other=session_ids)
 
 
 def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
